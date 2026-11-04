@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.env.*
+*.log
+.DS_Store
+Thumbs.db
+# local Telnyx CLI state / credentials never belong in git
+.telnyx-edge/
+# personal planning / interview prep — not part of the submission
+PLAN.md
