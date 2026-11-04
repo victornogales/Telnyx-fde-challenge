@@ -2,6 +2,8 @@
 
 Voice assistant for prescription refills on Telnyx AI Assistants, Conversation Workflows, Edge Functions, KV, Stateful Actors and a custom MCP server.
 
+Languages: **Python** (webhook + MCP server) and a small **TypeScript** actor gateway (Stateful Actors are TypeScript-only on Telnyx Edge).
+
 > Work in progress. See [PLAN.md](PLAN.md) for the full design.
 
 ## Try it

@@ -1,0 +1,8 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["@telnyx/opencode"],
+  "model": "telnyx/moonshotai/Kimi-K2.6",
+  "mcp": {
+    "telnyx-docs": { "type": "remote", "url": "https://developers.telnyx.com/mcp", "enabled": true }
+  }
+}

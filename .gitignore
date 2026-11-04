@@ -9,3 +9,8 @@ Thumbs.db
 .telnyx-edge/
 # personal planning / interview prep — not part of the submission
 PLAN.md
+# generated copies of functions/_shared (edit _shared only)
+functions/*/function/shared/
+__pycache__/
+.pytest_cache/
+.venv/
