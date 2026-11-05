@@ -29,6 +29,25 @@ Proof: Revision `ecba8961aaf7` deployed successfully; curl returns dynamic varia
 Lessons -> design: Do not attempt package directories in Python Edge Functions. Keep each function
   to one flat module. For shared code, copy-paste from `functions/_shared/` before shipping.
 
+## 2026-11-05 12:00 — TypeScript secret access and Windows curl body behavior
+Symptom: `caller-session` gateway returned `401 unauthorized` on every RPC call, then after fixing that, `{"ok":false,"error":"invalid json"}`.
+Evidence:
+  - `telnyx-edge secrets list` confirmed `INTERNAL_TOKEN` existed and was correct.
+  - Gateway code read `env.INTERNAL_TOKEN` (via `env as Record<string, string>` cast). It was always `undefined`.
+  - After switching to `process.env.INTERNAL_TOKEN`, auth passed but `req.json()` threw on a body that `curl.exe` had sent.
+  - PowerShell `Invoke-RestMethod` with the exact same JSON body succeeded immediately.
+  - Platform logs showed `outcome: "bad_json"` with `latency_ms: 0` — body was empty/unreadable.
+Root cause #1 (secrets): TypeScript Edge Functions expose **bindings** (actors, KV, etc.) on `env`, but **secrets** are injected as plain environment variables and must be read via `process.env`.
+Root cause #2 (curl): Windows `curl.exe` does not reliably deliver POST body bytes to the Edge Compute TypeScript `fetch` handler. The `Request` object has no body when read via `req.text()` or `req.json()`.
+Fix:
+  - Changed `env.INTERNAL_TOKEN` → `process.env.INTERNAL_TOKEN` in `src/index.ts`.
+  - Diagnostic/testing: use PowerShell `Invoke-RestMethod` instead of `curl.exe` for POSTs to TS functions.
+  - `caller-session` now ships with `process.env` for secrets and `env` for actor bindings only.
+Proof: Concurrency test (`scripts/concurrency_test.py`) fires 20 parallel `recordCall`s via `httpx` and succeeds with `callCount` incrementing from 45 → 66.
+Lessons → design:
+  - In TypeScript Edge Functions: `env` = typed bindings; `process.env` = secrets and plain env vars.
+  - On Windows, avoid `curl.exe` for POST smoke tests against TS functions; use `Invoke-RestMethod` or Python `httpx`.
+
 ## 2026-11-04 10:15 — New actor type unreachable after first deploy
 Symptom: every request → HTTP 500 after ~5.2 s:
   "failed to lookup actor … FailedPrecondition … did not find address for actor '<acct>__Counter/demo'"

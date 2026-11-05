@@ -37,7 +37,7 @@ async function handleRpc(req: Request, env: Env): Promise<Response> {
 
   try {
     const token = req.headers.get("X-Internal-Token") || "";
-    const expected = ((env as unknown as Record<string, string | undefined>).INTERNAL_TOKEN) || "";
+    const expected = process.env.INTERNAL_TOKEN || "";
     if (!timingSafeEqual(token, expected)) {
       logLine({
         fn: "caller-session",
@@ -51,7 +51,8 @@ async function handleRpc(req: Request, env: Env): Promise<Response> {
 
     let body: unknown;
     try {
-      body = await req.json();
+      const text = await req.text();
+      body = JSON.parse(text);
     } catch {
       logLine({
         fn: "caller-session",

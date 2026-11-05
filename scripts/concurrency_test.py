@@ -10,7 +10,7 @@ import sys
 import httpx
 
 GATEWAY_URL = "https://caller-session-51645523-7.telnyxcompute.com/rpc"
-INTERNAL_TOKEN = "REPLACE_ME"  # <-- paste your real INTERNAL_TOKEN here
+INTERNAL_TOKEN = "REPLACE_WITH_ENV_INTERNAL_TOKEN"  # <-- paste your real INTERNAL_TOKEN here
 CALLER_KEY = "concurrency_test"
 CONCURRENCY = 20
 
@@ -57,13 +57,14 @@ async def main() -> int:
         final = await fire_one(client, "tr_final")
         end_count = final.get("callCount", 0)
         print(f"Final callCount for {CALLER_KEY}:   {end_count}")
-        print(f"Expected: {start_count + CONCURRENCY}")
+        expected = start_count + CONCURRENCY + 1  # +1 because final fire_one also increments
+        print(f"Expected: {expected}")
 
-        if end_count == start_count + CONCURRENCY:
+        if end_count == expected:
             print("SUCCESS: actor serialized all updates correctly.")
             return 0
         else:
-            print(f"FAILURE: lost {start_count + CONCURRENCY - end_count} updates.")
+            print(f"FAILURE: expected {expected}, got {end_count}.")
             return 1
 
 

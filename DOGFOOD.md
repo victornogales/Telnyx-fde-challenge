@@ -30,3 +30,5 @@ Notes on which Telnyx-hosted models I used, for what, and what worked or didn't.
 - `telnyx-edge types` must run inside a function folder (one containing `telnyx.toml`/`func.toml`), not the repo root.
 - First deploy of a new actor type: unreachable for 22+ minutes ("did not find address for actor"); a re-ship fixed it. See BUGLOG.md.
 - Python `pyproject.toml`: only `py-modules = ["function"]` works; `packages = [...]` always fails at build time. Keep shared code in `_shared/` for local development, then inline before ship.
+- **TypeScript secrets** are on `process.env.SECRET_NAME`, NOT `env.SECRET_NAME` (which is for typed bindings like actors/KV). Using `env` for secrets returns `undefined` and causes silent auth failures.
+- **Windows `curl.exe` POST bodies** are unreliable against the Telnyx Edge TypeScript `fetch` handler — the `Request` body arrives empty. Use PowerShell `Invoke-RestMethod` or Python `httpx` for POST smoke tests.
