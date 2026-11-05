@@ -14,3 +14,5 @@ functions/*/function/shared/
 __pycache__/
 .pytest_cache/
 .venv/
+# local environment-check spike; results are in BUGLOG.md / DOGFOOD.md
+env-check/

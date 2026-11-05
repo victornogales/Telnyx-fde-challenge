@@ -1,0 +1,8 @@
+function.py
+pyproject.toml
+function.egg-info/PKG-INFO
+function.egg-info/SOURCES.txt
+function.egg-info/dependency_links.txt
+function.egg-info/requires.txt
+function.egg-info/top_level.txt
+tests/test_webhook.py

@@ -1,0 +1,11 @@
+name = "caller-session"
+main = "src/index.ts"
+compatibility_date = "2026-05-01"
+
+[[actors]]
+binding = "CALLER_SESSION"
+type = "CallerSession"
+
+[edge_compute]
+func_id = "51645523-7223-4949-8ada-c88ec6716e73"
+func_name = "caller-session"

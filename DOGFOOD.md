@@ -29,3 +29,4 @@ Notes on which Telnyx-hosted models I used, for what, and what worked or didn't.
 - `telnyx-edge new-func` does not run `npm install`; `ship` bundles locally with esbuild and fails until `node_modules` exists. The scaffold's README does say so: read it first.
 - `telnyx-edge types` must run inside a function folder (one containing `telnyx.toml`/`func.toml`), not the repo root.
 - First deploy of a new actor type: unreachable for 22+ minutes ("did not find address for actor"); a re-ship fixed it. See BUGLOG.md.
+- Python `pyproject.toml`: only `py-modules = ["function"]` works; `packages = [...]` always fails at build time. Keep shared code in `_shared/` for local development, then inline before ship.

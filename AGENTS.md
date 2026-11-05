@@ -19,15 +19,18 @@ Design: PLAN.md (local working plan, not committed), docs/architecture.md and th
 - KV from Python = REST: https://api.telnyx.com/v2/storage/kvs/{KV_NAMESPACE_ID}/keys/{key},
   Bearer TELNYX_API_KEY (injected by `[telnyx]` in func.toml), `?ttl_secs=N` on PUT, 404 = missing.
   Keys: no colons; use `/` (e.g. `flag/after_hours_mode`, `cache/fda/<name>`).
-- Shared Python helpers live ONLY in functions/_shared/; scripts/sync-shared.sh copies them into
-  each function's function/shared/ (generated, git-ignored). Edit _shared, never the copies.
+- **Platform constraint:** Python Edge Functions only support a single flat module
+  (`py-modules = ["function"]` in `pyproject.toml`). Package directories fail at build time.
+  Shared Python helpers live in `functions/_shared/` for local editing and pytest, but must be
+  **inlined** into `function.py` before `telnyx-edge ship`. Do not create `function/shared/` or
+  any sub-package directories in a Python function.
 - Dynamic variables webhook response MUST be `{"dynamic_variables": {...}}` and every value a STRING.
 - Webhook must answer < 1000 ms: per-dependency timeouts + asyncio.wait_for; on any error return
   SAFE_DEFAULTS with HTTP 200. Never a bare 500 anywhere.
 - Every request / actor method / tool call logs exactly one JSON line via `log()` with trace_id.
   Never log DOB, names or raw phone numbers — use caller_key (sha256 prefix).
 - MCP: stateless, POST /mcp, JSON responses; tools return speakable errors (isError), never raise.
-- Verification is enforced server-side via the gateway's isVerified(conversationId).
+- Verification is enforced server-side in the actor via time-based gating (`isVerified()` checks a 30-minute window after a successful attempt).
 - If unsure about any Telnyx API, search the `telnyx-docs` MCP before writing code.
 - Small, reviewable changes, with pytest tests for Python logic. After a change, tell me exactly
   which command to run to verify it.

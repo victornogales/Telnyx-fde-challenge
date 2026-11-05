@@ -1,0 +1,10 @@
+[edge_compute]
+func_id = "8d5c4fc7-bed8-49bb-94ea-e0f30aa9dcd0"
+func_name = "refill-webhook"
+
+# For environment variables and secrets:
+# Use telnyx-edge secrets add <name> <value>
+# Secrets are injected as environment variables into all your functions
+
+[telnyx]
+binding = "TELNYX"
