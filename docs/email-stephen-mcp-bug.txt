@@ -1,0 +1,30 @@
+Subject: Question — Where do MCP tools appear for Workflow node tool scoping?
+
+Hi Stephen,
+
+I'm Victor from the FDE challenge this week. Quick question about MCP tool visibility in workflows:
+
+**What works:**
+- My MCP server (refill-mcp) shows "connected" and the "Allowed Tools" page lists my 6 tools (verify_identity, list_prescriptions, etc.)
+- Direct curl tests against the MCP endpoint work fine
+
+**What I can't find:**
+My tools don't appear in either of these places:
+1. Assistant main page → Tools section (only shows built-in: Default transfer, take-message, get-weather)
+2. Workflow builder → Prompt node → Tools tab (same built-in list only)
+
+**What I've tried:**
+- Checked Integrations tab → MCP Server shows "connected"
+- Deleted and recreated the MCP server, then re-attached it to the assistant
+- Refreshed browser multiple times (F5)
+- Created a brand new MCP server (refill-mcp-v2) with the same URL — same result
+- Searched for a "refresh tools" button or option — didn't find one
+
+Is there a separate step to associate MCP tools with a workflow node, or am I looking in the wrong place?
+
+Account: RefillLine, phone +442045202115
+
+Happy to screenshare if that helps!
+
+Thanks,
+Victor
