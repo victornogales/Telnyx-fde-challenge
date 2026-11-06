@@ -35,7 +35,18 @@ Design: PLAN.md (local working plan, not committed), docs/architecture.md and th
 - Small, reviewable changes, with pytest tests for Python logic. After a change, tell me exactly
   which command to run to verify it.
 
-## Commands
+## Session Logging Rules (persistent)
+- `SESSION.md` is the single source-of-truth for our interactive session log. It is **not committed** (in `.gitignore`), so all build evidence stays private.
+- `DAY*_LOG.md` files and `SESSION.md` are never committed.
+- Each session step must include:
+  - What was done (command, code change, prompt used)
+  - The exact prompt text when delegating to OpenCode/AI (copy from PLAN.md §8 if available)
+  - Evidence (log lines, curl output, pytest results, screenshots)
+  - Any bugs: symptom → evidence → root cause → fix → proof (before/after)
+  - **Key decision** — why X over Y, with tradeoffs
+  - **Interview talking point** — 1-2 sentences summarizing the lesson
+- Future sessions: read `SESSION.md` first to know where we are; append new steps under the appropriate Day; never start a new log file.
+- Do **NOT** delete or overwrite previous session entries in `SESSION.md`. Append only.
 - scripts/sync-shared.sh                      # before shipping a Python function
 - pytest                                      # in a Python function folder
 - uvicorn app:app --port 8080 --interface asgi3 --lifespan off   # local run (see scaffold README)

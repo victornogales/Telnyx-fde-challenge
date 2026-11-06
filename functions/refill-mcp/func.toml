@@ -1,0 +1,6 @@
+[edge_compute]
+func_id = "6a4810fb-992f-479a-bc9b-dc60db9e5c13"
+func_name = "refill-mcp"
+
+[telnyx]
+binding = "TELNYX"

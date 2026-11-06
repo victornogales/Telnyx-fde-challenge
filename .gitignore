@@ -7,7 +7,9 @@ dist/
 Thumbs.db
 # local Telnyx CLI state / credentials never belong in git
 .telnyx-edge/
-# personal planning / interview prep — not part of the submission
+# personal logs and session notes
+SESSION.md
+DAY*_LOG.md
 PLAN.md
 # generated copies of functions/_shared (edit _shared only)
 functions/*/function/shared/
