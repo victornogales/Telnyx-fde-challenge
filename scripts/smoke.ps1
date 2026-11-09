@@ -156,6 +156,88 @@ function Test-McpVerifyAndRefill() {
 
     if ($resp.result.isError -eq $false) {
         Write-Host "OK" -ForegroundColor Green
+    } else {
+        Write-Host "FAIL" -ForegroundColor Red
+        return $false
+    }
+
+    Write-Host -NoNewline "MCP request_refill (Lisinopril) ... "
+    $body = @{
+        jsonrpc = "2.0"
+        id = "smoke-refill"
+        method = "tools/call"
+        params = @{
+            name = "request_refill"
+            arguments = @{
+                caller = "+15550000001"
+                rx_id = "rx-mar-001"
+                trace_id = "tr_smoke"
+            }
+        }
+    } | ConvertTo-Json -Depth 5
+
+    $resp = Invoke-RestMethod -Uri "$MCP_URL/mcp" -Method Post -Headers @{
+        "Content-Type" = "application/json"
+        "Authorization" = "Bearer $MCP_TOKEN"
+    } -Body $body
+
+    if ($resp.result.isError -eq $false) {
+        Write-Host "OK" -ForegroundColor Green
+    } else {
+        Write-Host "FAIL" -ForegroundColor Red
+        return $false
+    }
+
+    Write-Host -NoNewline "MCP get_refill_status ... "
+    $body = @{
+        jsonrpc = "2.0"
+        id = "smoke-status"
+        method = "tools/call"
+        params = @{
+            name = "get_refill_status"
+            arguments = @{
+                caller = "+15550000001"
+                trace_id = "tr_smoke"
+            }
+        }
+    } | ConvertTo-Json -Depth 5
+
+    $resp = Invoke-RestMethod -Uri "$MCP_URL/mcp" -Method Post -Headers @{
+        "Content-Type" = "application/json"
+        "Authorization" = "Bearer $MCP_TOKEN"
+    } -Body $body
+
+    if ($resp.result.isError -eq $false) {
+        Write-Host "OK" -ForegroundColor Green
+        return $true
+    } else {
+        Write-Host "FAIL" -ForegroundColor Red
+        return $false
+    }
+}
+
+function Test-McpMedicationInfo() {
+    Write-Host -NoNewline "MCP get_medication_info (Lisinopril) ... "
+    $body = @{
+        jsonrpc = "2.0"
+        id = "smoke-medication"
+        method = "tools/call"
+        params = @{
+            name = "get_medication_info"
+            arguments = @{
+                name = "Lisinopril"
+                trace_id = "tr_smoke"
+            }
+        }
+    } | ConvertTo-Json -Depth 5
+
+    $resp = Invoke-RestMethod -Uri "$MCP_URL/mcp" -Method Post -Headers @{
+        "Content-Type" = "application/json"
+        "Authorization" = "Bearer $MCP_TOKEN"
+    } -Body $body
+
+    if ($resp.result.isError -eq $false) {
+        Write-Host "OK" -ForegroundColor Green
         return $true
     } else {
         Write-Host "FAIL" -ForegroundColor Red
@@ -214,6 +296,7 @@ $results += Test-McpInitialize
 $results += Test-McpToolsList
 $results += Test-McpPharmacyInfo
 $results += Test-McpVerifyAndRefill
+$results += Test-McpMedicationInfo
 $results += Test-GatewayRecordCall
 $results += Test-Webhook
 

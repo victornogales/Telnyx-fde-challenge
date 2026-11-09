@@ -923,7 +923,7 @@ class App:
                     if val.lower().startswith("bearer ") and val[7:] == _MCP_TOKEN:
                         auth_ok = True
                         break
-            if not auth_ok and _MCP_TOKEN:
+            if _MCP_TOKEN and not auth_ok:
                 _log("mcp_request", trace_id=trace_id, method="auth", outcome="unauthorized", header_names=header_names)
                 await self._send_json(send, 401, {"error": "unauthorized"})
                 return
