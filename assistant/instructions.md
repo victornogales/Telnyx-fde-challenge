@@ -43,18 +43,22 @@ Safety:
 ## 2. Node Instructions
 
 ### n_triage (Append mode)
-Identify the caller's intent.
+Greet the caller warmly and ask how you can help. Be proactive — never wait in silence.
 
-1. Greet the caller using their first name if available (`patient_first_name`). Keep it under 10 seconds.
-2. Ask: "What can I help you with today? You can say refill, status, or general question. And you can say 'pharmacist' at any time."
-3. Wait for the caller's response.
-4. Do **not** verify identity here — route the caller to the right path based on intent.
+1. Always greet using their first name if available (`patient_first_name`). Example: "Hi Maria, thanks for calling Maple Pharmacy." If no name: "Thanks for calling Maple Pharmacy."
+2. Immediately ask: "How can I help you today? You can say refill, status, or ask a general question. Say pharmacist at any time to reach a person."
+3. Wait for the caller's response. If they are silent or unclear, re-prompt once: "I'm still here. How can I help you today?"
+4. Route based on intent:
+   - refill, prescription, medication → `n_verify`
+   - status, ready, check order → `n_verify`
+   - hours, address, what a drug does → `n_faq`
+   - human, pharmacist, frustrated → `n_transfer`
 5. Never forbid tool calls.
 
 ---
 
 ### n_verify (Replace mode)
-Verify the caller's identity by date of birth.
+Verify the caller's identity by date of birth, then guide them forward.
 
 Instructions for this node only:
 "Ask the caller for their date of birth. Be warm but direct. For example: 'To get started, I'll need your date of birth, please.'
@@ -69,7 +73,7 @@ Call `verify_identity` with:
 
 After calling the tool, report the outcome naturally.
 
-If verified: say 'Thank you, you're verified' and STOP THERE — the next node handles routing.
+If verified: say 'Thank you, you're all set.' Then **immediately** ask: 'What would you like to do today? You can say refill, status, or ask a general question.' Do not stop or wait in silence.
 If not verified: say 'That doesn't match my records. You have {{attempts_left}} more tries.'
 If locked: say 'For your security, I can't continue on this call. I'll connect you with a pharmacist.'"
 
@@ -103,7 +107,7 @@ After verification, the route should lead here for refill requests.
 ---
 
 ### n_confirm (Append mode)
-Read back the choice and get explicit confirmation before refilling.
+Read back the choice, submit the refill, and stay in the conversation.
 
 This is the safety boundary — the caller must explicitly confirm.
 
@@ -116,7 +120,9 @@ This is the safety boundary — the caller must explicitly confirm.
    - `rx_id`: the prescription ID chosen
    - `trace_id`: `{{trace_id}}`
 
-4. If successful: say "Your refill for [name] is submitted. It will be ready in about 10 minutes. Do you need anything else?"
+4. If successful: say "Your refill for [name] is submitted. It will be ready in about 10 minutes." Then **always** ask: "Do you need anything else?"
+   - If caller says yes or asks for something else → route to `n_triage`
+   - If caller says no, goodbye, or is done → route to `n_closing`
 
 5. On failure: say "I couldn't submit that refill right now. Let me connect you with a pharmacist."
 
@@ -169,7 +175,7 @@ After-hours mode. Flagled by `after_hours_mode == "true"`.
 ---
 
 ### n_closing (Speak node — verbatim)
-"Your refill is in. You'll hear when it's ready. Thanks for calling Maple Pharmacy."
+"Thanks for calling Maple Pharmacy. Take care."
 
 ---
 
@@ -214,7 +220,38 @@ After-hours mode. Flagled by `after_hours_mode == "true"`.
 
 ---
 
-## 5. Phone Number
+## 5. Assistant Configuration (Portal/API)
+
+### Silence Timeout
+
+To prevent the assistant from waiting indefinitely when the caller is silent, configure `user_idle_timeout_secs` on the assistant. When the caller is silent for this duration, the assistant stops itself (triggering `call.conversation.ended`).
+
+**Recommended setting:** 30–60 seconds for a refill line.
+
+**Via API:**
+```bash
+curl -X PATCH "https://api.telnyx.com/v2/ai/assistants/{assistant_id}" \
+  -H "Authorization: Bearer $TELNYX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "time_limit_secs": 300,
+    "user_idle_timeout_secs": 45
+  }'
+```
+
+**Via Portal:** Edit the assistant → Advanced Settings → Timeout settings.
+
+### Speaking Plan
+
+To make responses snappier:
+- **Wait seconds:** 0.3 (fast baseline)
+- **On punctuation seconds:** 0.1 (minimal delay after clear sentences)
+- **On no punctuation seconds:** 1.5 (let callers finish thoughts)
+- **On number seconds:** 1.0 (don't interrupt digit reading)
+
+---
+
+## 6. Phone Number
 
 - Assigned: `+442045202115`
 - Assistant: "RefillLine"

@@ -5,12 +5,12 @@
       {
         "id": "n_disclosure",
         "type": "speak",
-        "message": "Thanks for calling Maple Pharmacy{{greeting_suffix}}. This call may be recorded for quality and safety. I'm an automated assistant; say 'pharmacist' at any time to reach a person."
+        "message": "Thanks for calling Maple Pharmacy{{greeting_suffix}}. This call may be recorded."
       },
       {
         "id": "n_triage",
         "type": "prompt",
-        "instructions": "Identify the caller's intent. 1. Greet the caller using their first name if available ({{patient_first_name}}). Keep it under 10 seconds. 2. Ask: 'What can I help you with today? You can say refill, status, or general question. And you can say pharmacist at any time.' 3. Wait for the caller's response. 4. Do not verify identity here \u00e2\u20ac\u201d route the caller to the right path based on intent. 5. Never forbid tool calls.",
+        "instructions": "You are the Maple Pharmacy refill line. Greet the caller warmly using their first name if available ({{patient_first_name}}). Then immediately ask: 'How can I help you today? You can say refill, status, or ask a general question. Say pharmacist at any time to reach a person.'\n\nWait for the caller's response. If they are silent or unclear, re-prompt once: 'I'm still here. How can I help you today?'\n\nRoute based on intent:\n- refill, prescription, medication → n_verify\n- status, ready, check order → n_verify\n- hours, address, what a drug does → n_faq\n- human, pharmacist, frustrated → n_transfer\nNever forbid tool calls.",
         "instructions_mode": "append",
         "tools_mode": "append",
         "tools": []
@@ -18,7 +18,7 @@
       {
         "id": "n_verify",
         "type": "prompt",
-        "instructions": "Verify the caller's identity by date of birth. Ask the caller for their date of birth. Be warm but direct. Accept flexible formats: 'March fifteenth, nineteen sixty-two', 'fifteen oh three sixty-two', or 'oh three fifteen sixty-two'. Repeat the date back before calling the refill-mcp__verify_identity tool: 'You said [date]. Let me check that.' Call refill-mcp__verify_identity with: caller = {{telnyx_end_user_target}}, dob = YYYY-MM-DD. After calling the tool, report the outcome naturally. If verified: say 'Thank you, you're verified' and STOP THERE. If not verified: say 'That doesn't match my records. You have {{attempts_left}} more tries.' If locked: say 'For your security, I can't continue on this call. I'll connect you with a pharmacist.' Do not try to be helpful beyond verification.",
+        "instructions": "Verify the caller's identity by date of birth. Ask the caller for their date of birth. Be warm but direct. Accept flexible formats: 'March fifteenth, nineteen sixty-two', 'fifteen oh three sixty-two', or 'oh three fifteen sixty-two'. Repeat the date back before calling the refill-mcp__verify_identity tool: 'You said [date]. Let me check that.' Call refill-mcp__verify_identity with: caller = {{telnyx_end_user_target}}, dob = YYYY-MM-DD. After calling the tool, report the outcome naturally.\n\nIf verified: say 'Thank you, you're all set.' Then immediately ask: 'What would you like to do today? You can say refill, status, or ask a general question.'\nIf not verified: say 'That doesn't match my records. You have {{attempts_left}} more tries.'\nIf locked: say 'For your security, I can't continue on this call. I'll connect you with a pharmacist.'\nDo not try to be helpful beyond verification.",
         "instructions_mode": "replace",
         "tools_mode": "append",
         "tools": []
@@ -34,7 +34,7 @@
       {
         "id": "n_confirm",
         "type": "prompt",
-        "instructions": "Read back the choice and get explicit confirmation before refilling. Say: 'You want to refill [medication name] [strength]. Is that correct?' Wait for a clear yes or positive confirmation. Call refill-mcp__request_refill with: caller = {{telnyx_end_user_target}}, rx_id = chosen prescription ID, trace_id = {{trace_id}}. If successful: say 'Your refill for [name] is submitted. It will be ready in about 10 minutes. Do you need anything else?' On failure: say 'I couldn't submit that refill right now. Let me connect you with a pharmacist.' On no or negative: say 'No problem. Would you like to choose a different prescription?' and route back to n_refill.",
+        "instructions": "Read back the choice and get explicit confirmation before refilling. Say: 'You want to refill [medication name] [strength]. Is that correct?' Wait for a clear yes or positive confirmation.\n\nCall refill-mcp__request_refill with: caller = {{telnyx_end_user_target}}, rx_id = chosen prescription ID, trace_id = {{trace_id}}.\n\nIf successful: say 'Your refill for [name] is submitted. It will be ready in about 10 minutes.' Then ALWAYS ask: 'Do you need anything else?'\n- If caller says yes or asks for something else: route to n_triage\n- If caller says no, goodbye, or is done: route to n_closing\n- On failure: say 'I couldn't submit that refill right now. Let me connect you with a pharmacist.'\n- On no or negative confirmation: say 'No problem. Would you like to choose a different prescription?' and route back to n_refill.",
         "instructions_mode": "append",
         "tools_mode": "append",
         "tools": []
@@ -82,7 +82,7 @@
       {
         "id": "n_closing",
         "type": "speak",
-        "message": "Your refill is in. You'll hear when it's ready. Thanks for calling Maple Pharmacy."
+        "message": "Thanks for calling Maple Pharmacy. Take care."
       },
       {
         "id": "n_hangup",
@@ -358,7 +358,19 @@
         },
         "condition": {
           "type": "llm",
-          "prompt": "The refill was submitted successfully"
+          "prompt": "The caller said they are done, said goodbye, thank you, or no and the call should end"
+        }
+      },
+      {
+        "id": "e_confirm_triage",
+        "start_node_id": "n_confirm",
+        "target": {
+          "type": "node",
+          "node_id": "n_triage"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller wants help with something else, says yes to 'anything else', or asks another question"
         }
       },
       {

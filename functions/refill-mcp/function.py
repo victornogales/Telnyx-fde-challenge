@@ -42,6 +42,17 @@ class _Timer:
         return int((time.perf_counter() - self._start) * 1000)
 
 
+async def _retry_async(coro_factory, *, attempts: int = 3, base_delay_ms: int = 100):
+    """Retry an async callable with exponential backoff."""
+    for i in range(attempts):
+        try:
+            return await coro_factory()
+        except Exception:
+            if i == attempts - 1:
+                raise
+            await asyncio.sleep((2 ** i * base_delay_ms) / 1000.0)
+
+
 def _caller_key(e164: str) -> str:
     digest = hashlib.sha256(e164.encode("utf-8")).hexdigest()
     return digest[:16]
@@ -69,7 +80,8 @@ async def _session_call(
         "caller_key": caller_key,
         "args": args,
     }
-    try:
+
+    async def _do_call():
         resp = await client.post(
             url,
             json=payload,
@@ -85,6 +97,9 @@ async def _session_call(
         if not data.get("ok"):
             raise _SessionError(data.get("error", "gateway error"))
         return data.get("result")
+
+    try:
+        return await _retry_async(_do_call, attempts=3, base_delay_ms=100)
     except _SessionError:
         raise
     except Exception as exc:
@@ -109,7 +124,7 @@ class _KV:
         }
 
     async def get(self, key: str, timeout: float = 5.0) -> str | None:
-        try:
+        async def _do_get():
             resp = await self._client.get(
                 self._url(key),
                 headers=self._headers(),
@@ -119,6 +134,9 @@ class _KV:
                 return None
             resp.raise_for_status()
             return resp.text
+
+        try:
+            return await _retry_async(_do_get, attempts=3, base_delay_ms=100)
         except Exception as exc:
             _log("kv_get_error", key=key, error_type=type(exc).__name__, error=str(exc))
             return None
@@ -130,7 +148,7 @@ class _KV:
         ttl_secs: int | None = None,
         timeout: float = 5.0,
     ) -> bool:
-        try:
+        async def _do_put():
             url = self._url(key)
             if ttl_secs is not None:
                 url = f"{url}?ttl_secs={ttl_secs}"
@@ -143,6 +161,9 @@ class _KV:
             )
             resp.raise_for_status()
             return True
+
+        try:
+            return await _retry_async(_do_put, attempts=3, base_delay_ms=100)
         except Exception as exc:
             _log("kv_put_error", key=key, error_type=type(exc).__name__, error=str(exc))
             return False
@@ -680,11 +701,11 @@ class MCPHandler:
                     "verified": verified,
                     "attempts_left": attempts_left,
                     "locked": locked,
-                    "message": (
-                        "Thank you, you are verified." if verified else
-                        f"That doesn't match my records. You have {attempts_left} attempts remaining." if not locked else
-                        "For your security I can't continue verification on this call."
-                    ),
+                "message": (
+                    "Thank you, you're all set." if verified else
+                    f"That doesn't match what I have. You have {attempts_left} more tries." if not locked else
+                    "For your security, I can't continue this call. I'll connect you with a pharmacist."
+                ),
                 }),
             }
         except _SessionError:
