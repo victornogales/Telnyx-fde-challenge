@@ -48,6 +48,19 @@ def _new_trace_id() -> str:
     return "tr_" + secrets.token_hex(6)
 
 
+_PATIENTS: dict[str, str] = {
+    "+15550000001": "Maria",
+    "+442045202115": "James",
+    "+15551112222": "David",
+    "+15552223333": "Sarah",
+    "+15553334444": "Robert",
+}
+
+
+def _find_patient_name(e164: str) -> str:
+    return _PATIENTS.get(e164, "")
+
+
 class _SessionError(Exception):
     pass
 
@@ -284,6 +297,13 @@ class App:
         kv = _KV(_client(), _KV_NAMESPACE_ID)
         duplicate = _is_duplicate_call(call_control_id)
 
+        # Resolve patient name immediately (instant, no RPC)
+        patient_name = _find_patient_name(end_user)
+
+        # Partial defaults that always include the name, even on timeout
+        PARTIAL_DEFAULTS = dict(SAFE_DEFAULTS)
+        PARTIAL_DEFAULTS["patient_first_name"] = patient_name
+
         try:
             result = await asyncio.wait_for(
                 self._fetch_all(kv, caller, trace_id, call_control_id, skip_record_call=duplicate),
@@ -296,10 +316,11 @@ class App:
                 trace_id=trace_id,
                 caller_key=caller,
                 outcome="fallback",
+                patient_name=patient_name,
                 error="overall_timeout",
                 total_ms=timer.ms(),
             )
-            await self._send_dynamic_vars(send, SAFE_DEFAULTS, trace_id)
+            await self._send_dynamic_vars(send, PARTIAL_DEFAULTS, trace_id)
             return
         except Exception as exc:
             _log(
@@ -307,14 +328,15 @@ class App:
                 trace_id=trace_id,
                 caller_key=caller,
                 outcome="fallback",
+                patient_name=patient_name,
                 error_type=type(exc).__name__,
                 error=str(exc),
                 total_ms=timer.ms(),
             )
-            await self._send_dynamic_vars(send, SAFE_DEFAULTS, trace_id)
+            await self._send_dynamic_vars(send, PARTIAL_DEFAULTS, trace_id)
             return
 
-        vars_out = dict(SAFE_DEFAULTS)
+        vars_out = dict(PARTIAL_DEFAULTS)
         vars_out["trace_id"] = trace_id
         vars_out["is_known_caller"] = "true"
         vars_out["call_count"] = str(gateway_result.get("callCount", 0))
