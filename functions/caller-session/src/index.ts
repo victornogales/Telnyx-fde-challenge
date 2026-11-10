@@ -125,28 +125,16 @@ async function handleRpc(req: Request, env: Env): Promise<Response> {
 async function handleHealth(env: Env): Promise<Response> {
   const start = Date.now();
   const traceId = `health_${Date.now()}`;
-  try {
-    const stub = env.CALLER_SESSION.idFromName("health");
-    await stub.isVerified({ traceId });
-    logLine({
-      fn: "caller-session",
-      event: "health",
-      trace_id: traceId,
-      outcome: "ok",
-      latency_ms: Date.now() - start,
-    });
-    return Response.json({ ok: true });
-  } catch (err) {
-    logLine({
-      fn: "caller-session",
-      event: "health",
-      trace_id: traceId,
-      outcome: "error",
-      error: String(err),
-      latency_ms: Date.now() - start,
-    });
-    return Response.json({ ok: false, error: String(err) }, { status: 503 });
-  }
+  // Fast health: return immediately without probing the actor or dependencies.
+  // Health checks verify the process is alive, not downstream connectivity.
+  logLine({
+    fn: "caller-session",
+    event: "health",
+    trace_id: traceId,
+    outcome: "ok",
+    latency_ms: Date.now() - start,
+  });
+  return Response.json({ ok: true });
 }
 
 export default {

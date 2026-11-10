@@ -52,6 +52,46 @@ class _SessionError(Exception):
     pass
 
 
+def _new_trace_id() -> str:
+    return "tr_" + secrets.token_hex(6)
+
+
+# In-memory dedup cache for call_control_id (prevents double-counting on webhook redelivery)
+_DEDUP_WINDOW_SECS = 300.0
+_seen_call_ids: dict[str, float] = {}
+
+
+def _is_duplicate_call(call_control_id: str | None) -> bool:
+    if not call_control_id:
+        return False
+    now = time.monotonic()
+    # Prune old entries
+    cutoff = now - _DEDUP_WINDOW_SECS
+    stale = [k for k, v in _seen_call_ids.items() if v < cutoff]
+    for k in stale:
+        del _seen_call_ids[k]
+    # Check
+    if call_control_id in _seen_call_ids:
+        return True
+    _seen_call_ids[call_control_id] = now
+    return False
+
+
+async def _retry_async(coro_factory, *, attempts: int = 3, base_delay_ms: int = 100):
+    """Retry an async callable with exponential backoff."""
+    for i in range(attempts):
+        try:
+            return await coro_factory()
+        except Exception:
+            if i == attempts - 1:
+                raise
+            await asyncio.sleep((2 ** i * base_delay_ms) / 1000.0)
+
+
+class _SessionError(Exception):
+    pass
+
+
 async def _session_call(
     client: httpx.AsyncClient,
     method: str,
@@ -66,7 +106,8 @@ async def _session_call(
         "caller_key": caller_key,
         "args": args,
     }
-    try:
+
+    async def _do_call():
         resp = await client.post(
             url,
             json=payload,
@@ -82,6 +123,9 @@ async def _session_call(
         if not data.get("ok"):
             raise _SessionError(data.get("error", "gateway error"))
         return data.get("result")
+
+    try:
+        return await _retry_async(_do_call, attempts=3, base_delay_ms=100)
     except _SessionError:
         raise
     except Exception as exc:
@@ -107,7 +151,7 @@ class _KV:
         }
 
     async def get(self, key: str, timeout: float = 5.0) -> str | None:
-        try:
+        async def _do_get():
             resp = await self._client.get(
                 self._url(key),
                 headers=self._headers(),
@@ -118,6 +162,9 @@ class _KV:
             resp.raise_for_status()
             data = resp.json()
             return data.get("data", {}).get("value")
+
+        try:
+            return await _retry_async(_do_get, attempts=3, base_delay_ms=100)
         except Exception as exc:
             _log("kv_get_error", key=key, error_type=type(exc).__name__, error=str(exc))
             return None
@@ -129,7 +176,7 @@ class _KV:
         ttl_secs: int | None = None,
         timeout: float = 5.0,
     ) -> bool:
-        try:
+        async def _do_put():
             url = self._url(key)
             if ttl_secs is not None:
                 url = f"{url}?ttl_secs={ttl_secs}"
@@ -142,6 +189,9 @@ class _KV:
             )
             resp.raise_for_status()
             return True
+
+        try:
+            return await _retry_async(_do_put, attempts=3, base_delay_ms=100)
         except Exception as exc:
             _log("kv_put_error", key=key, error_type=type(exc).__name__, error=str(exc))
             return False
@@ -232,10 +282,11 @@ class App:
 
         caller = _caller_key(end_user)
         kv = _KV(_client(), _KV_NAMESPACE_ID)
+        duplicate = _is_duplicate_call(call_control_id)
 
         try:
             result = await asyncio.wait_for(
-                self._fetch_all(kv, caller, trace_id, call_control_id),
+                self._fetch_all(kv, caller, trace_id, call_control_id, skip_record_call=duplicate),
                 timeout=1.0,
             )
             flags, gateway_result = result
@@ -296,6 +347,7 @@ class App:
         caller: str,
         trace_id: str,
         call_control_id: str,
+        skip_record_call: bool = False,
     ) -> tuple[dict[str, str], dict[str, Any]]:
         kv_timer = _Timer()
         gw_timer = _Timer()
@@ -311,6 +363,14 @@ class App:
             }
 
         async def _gateway() -> dict[str, Any]:
+            if skip_record_call:
+                # Idempotency: return a safe fallback so the rest of the handler works
+                return {
+                    "callCount": 0,
+                    "locked": False,
+                    "openRefills": 0,
+                    "_gateway_ms": gw_timer.ms(),
+                }
             client = _client()
             result = await asyncio.wait_for(
                 _session_call(

@@ -1003,30 +1003,11 @@ class App:
 
     async def _health_check(self) -> dict[str, Any]:
         timer = _Timer()
-        kv_ok = False
-        gateway_ok = False
-        try:
-            val = await self._mcp._kv.get("flag/refills_enabled", timeout=2.0)
-            kv_ok = val is not None
-        except Exception:
-            pass
-        try:
-            await _session_call(
-                _client(),
-                "isVerified",
-                "health",
-                {"traceId": "health"},
-                "health",
-                timeout=2.0,
-            )
-            gateway_ok = True
-        except Exception:
-            pass
+        # Fast health: do not probe dependencies. Health checks verify the process is alive,
+        # not that every downstream is reachable. Dependency status is surfaced per-request.
         return {
             "ok": True,
             "version": _MCP_VERSION,
-            "kv": "ok" if kv_ok else "down",
-            "gateway": "ok" if gateway_ok else "down",
             "latency_ms": timer.ms(),
         }
 
