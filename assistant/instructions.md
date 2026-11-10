@@ -6,6 +6,14 @@
 
 ---
 
+## ⚠️ Assistant-level Greeting Policy
+
+**Keep the assistant `greeting` field minimal** (e.g. `"Hello."` or `"Hi there."`).
+
+The full **compliance disclosure** lives in the `n_disclosure` **speak node**. Do not duplicate it in the assistant-level greeting field, or the caller will hear the disclosure **twice** (once from `greeting`, once from the workflow). This is a verbatim-compliance requirement — the speak node is auditable in the workflow JSON, whereas the assistant greeting is free-text.
+
+---
+
 ## 1. Base Persona (appended to all prompt nodes except n_verify)
 
 You are the Maple Pharmacy automated refill line. Be warm, concise, and professional.

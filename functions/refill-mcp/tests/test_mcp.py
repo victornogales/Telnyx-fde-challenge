@@ -131,3 +131,169 @@ class TestOpenFDANormalization:
     def test_first_empty(self):
         assert fn._first([]) == ""
         assert fn._first(["a", "b"]) == "a"
+
+
+class TestMCPHandlerHardening:
+    @pytest.mark.asyncio
+    async def test_notification_no_id(self):
+        mock_kv = MagicMock()
+        mock_client = MagicMock()
+        handler = fn.MCPHandler(mock_kv, mock_client)
+        body = json.dumps({"jsonrpc": "2.0", "method": "initialize", "params": {}}).encode()
+        status, result = await handler.handle(body, [], "tr_test")
+        assert status == 202
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_batch_invalid_request(self):
+        mock_kv = MagicMock()
+        mock_client = MagicMock()
+        handler = fn.MCPHandler(mock_kv, mock_client)
+        body = json.dumps([{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}]).encode()
+        status, result = await handler.handle(body, [], "tr_test")
+        assert status == 200
+        assert result["error"]["code"] == -32600
+
+    @pytest.mark.asyncio
+    async def test_non_dict_body(self):
+        mock_kv = MagicMock()
+        mock_client = MagicMock()
+        handler = fn.MCPHandler(mock_kv, mock_client)
+        body = json.dumps("just a string").encode()
+        status, result = await handler.handle(body, [], "tr_test")
+        assert status == 200
+        assert result["error"]["code"] == -32600
+
+    @pytest.mark.asyncio
+    async def test_initialize_unknown_protocol_version(self):
+        mock_kv = MagicMock()
+        mock_client = MagicMock()
+        handler = fn.MCPHandler(mock_kv, mock_client)
+        result = await handler._handle_initialize({"protocolVersion": "1999-01-01"})
+        assert result["protocolVersion"] == fn._SUPPORTED_PROTOCOL_VERSIONS[0]
+
+    @pytest.mark.asyncio
+    async def test_tool_call_without_trace_id(self):
+        mock_kv = MagicMock()
+        mock_kv.get = AsyncMock(return_value=None)
+        mock_client = MagicMock()
+        handler = fn.MCPHandler(mock_kv, mock_client)
+        body = json.dumps({
+            "jsonrpc": "2.0", "id": 1,
+            "method": "tools/call",
+            "params": {
+                "name": "get_pharmacy_info",
+                "arguments": {},
+            }
+        }).encode()
+        status, result = await handler.handle(body, [], "tr_test")
+        assert status == 200
+        assert result["result"]["isError"] is False
+        content = result["result"]["content"]
+        assert len(content) > 0
+        assert content[0]["type"] == "text"
+        data = json.loads(content[0]["text"])
+        assert data["name"] == "Maple Pharmacy"
+
+
+class TestAppHardening:
+    @pytest.mark.asyncio
+    async def test_get_mcp(self):
+        app = fn.App()
+        send_mock = AsyncMock()
+        await app._handle(
+            {"method": "GET", "path": "/mcp", "headers": []},
+            _mock_receive(b""),
+            send_mock,
+            "tr_test"
+        )
+        assert _status(send_mock) == 405
+
+    @pytest.mark.asyncio
+    async def test_delete_mcp(self):
+        app = fn.App()
+        send_mock = AsyncMock()
+        await app._handle(
+            {"method": "DELETE", "path": "/mcp", "headers": []},
+            _mock_receive(b""),
+            send_mock,
+            "tr_test"
+        )
+        assert _status(send_mock) == 405
+
+    @pytest.mark.asyncio
+    async def test_path_normalization(self):
+        app = fn.App()
+        send_mock = AsyncMock()
+        await app._handle(
+            {"method": "GET", "path": "/mcp/", "headers": []},
+            _mock_receive(b""),
+            send_mock,
+            "tr_test"
+        )
+        assert _status(send_mock) == 405
+
+    @pytest.mark.asyncio
+    async def test_unauthorized_post(self):
+        with patch.object(fn, "_MCP_TOKEN", "valid_token"):
+            app = fn.App()
+            send_mock = AsyncMock()
+            await app._handle(
+                {"method": "POST", "path": "/mcp", "headers": [[b"authorization", b"Bearer bad"]]},
+                _mock_receive(b""),
+                send_mock,
+                "tr_test"
+            )
+            assert _status(send_mock) == 401
+
+    @pytest.mark.asyncio
+    async def test_unauthorized_no_token(self):
+        with patch.dict("os.environ", {"MCP_TOKEN": ""}):
+            app = fn.App()
+            send_mock = AsyncMock()
+            await app._handle(
+                {"method": "POST", "path": "/mcp", "headers": []},
+                _mock_receive(b""),
+                send_mock,
+                "tr_test"
+            )
+            assert _status(send_mock) == 200  # no token configured → open
+
+    @pytest.mark.asyncio
+    async def test_unhandled_error_returns_json(self):
+        app = fn.App()
+        send_mock = AsyncMock()
+        # Force _handle to raise by using a broken scope
+        with patch.object(app, "_handle", side_effect=RuntimeError("boom")):
+            await app.handle(
+                {"method": "GET", "path": "/health", "headers": []},
+                _mock_receive(b""),
+                send_mock
+            )
+        assert _status(send_mock) == 500
+        assert _json_body(send_mock)["error"] == "internal"
+
+
+def _mock_receive(body: bytes):
+    async def receive():
+        return {"type": "http.request", "body": body, "more_body": False}
+    return receive
+
+
+def _status(send_mock):
+    for call in send_mock.call_args_list:
+        args = call.args or call[0]
+        if args and isinstance(args[0], dict):
+            if args[0].get("type") == "http.response.start":
+                return args[0].get("status")
+    return None
+
+
+def _json_body(send_mock):
+    for call in send_mock.call_args_list:
+        args = call.args or call[0]
+        if args and isinstance(args[0], dict):
+            if args[0].get("type") == "http.response.body":
+                body = args[0].get("body", b"")
+                return json.loads(body.decode())
+    return {}

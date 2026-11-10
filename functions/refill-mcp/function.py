@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import hmac
 import json
 import os
 import secrets
@@ -360,9 +361,9 @@ TOOLS = [
             "properties": {
                 "caller": {"type": "string", "description": "The caller's E.164 phone number"},
                 "dob": {"type": "string", "description": "Date of birth in YYYY-MM-DD format (extracted from what the caller said)"},
-                "trace_id": {"type": "string", "description": "Trace ID for logging (pass {{trace_id}})"},
+                "trace_id": {"type": "string", "description": "Optional trace ID for logging; omit if unknown."},
             },
-            "required": ["caller", "dob", "trace_id"],
+            "required": ["caller", "dob"],
         },
     },
     {
@@ -377,9 +378,9 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "caller": {"type": "string", "description": "The caller's E.164 phone number"},
-                "trace_id": {"type": "string", "description": "Trace ID for logging (pass {{trace_id}})"},
+                "trace_id": {"type": "string", "description": "Optional trace ID for logging; omit if unknown."},
             },
-            "required": ["caller", "trace_id"],
+            "required": ["caller"],
         },
     },
     {
@@ -395,9 +396,9 @@ TOOLS = [
             "properties": {
                 "caller": {"type": "string", "description": "The caller's E.164 phone number"},
                 "rx_id": {"type": "string", "description": "The prescription ID to refill (e.g. rx-mar-001)"},
-                "trace_id": {"type": "string", "description": "Trace ID for logging (pass {{trace_id}})"},
+                "trace_id": {"type": "string", "description": "Optional trace ID for logging; omit if unknown."},
             },
-            "required": ["caller", "rx_id", "trace_id"],
+            "required": ["caller", "rx_id"],
         },
     },
     {
@@ -411,9 +412,9 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "caller": {"type": "string", "description": "The caller's E.164 phone number"},
-                "trace_id": {"type": "string", "description": "Trace ID for logging (pass {{trace_id}})"},
+                "trace_id": {"type": "string", "description": "Optional trace ID for logging; omit if unknown."},
             },
-            "required": ["caller", "trace_id"],
+            "required": ["caller"],
         },
     },
     {
@@ -428,9 +429,9 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "name": {"type": "string", "description": "Medication name (e.g. Lisinopril)"},
-                "trace_id": {"type": "string", "description": "Trace ID for logging (pass {{trace_id}})"},
+                "trace_id": {"type": "string", "description": "Optional trace ID for logging; omit if unknown."},
             },
-            "required": ["name", "trace_id"],
+            "required": ["name"],
         },
     },
     {
@@ -442,9 +443,9 @@ TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "trace_id": {"type": "string", "description": "Trace ID for logging (pass {{trace_id}})"},
+                "trace_id": {"type": "string", "description": "Optional trace ID for logging; omit if unknown."},
             },
-            "required": ["trace_id"],
+            "required": [],
         },
     },
 ]
@@ -466,6 +467,9 @@ def _jsonrpc_result(id_val: Any, result: Any) -> dict[str, Any]:
     }
 
 
+_SUPPORTED_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"]
+
+
 class MCPHandler:
     def __init__(self, kv: _KV, http_client: httpx.AsyncClient) -> None:
         self._kv = kv
@@ -485,9 +489,20 @@ class MCPHandler:
             )
             return 200, _jsonrpc_error(None, -32700, "Parse error")
 
+        # Batch or non-dict body → Invalid Request
+        if not isinstance(request, dict):
+            _log(
+                "mcp_request",
+                trace_id=trace_id,
+                method="invalid_request",
+                outcome="not_dict",
+                latency_ms=timer.ms(),
+            )
+            return 200, _jsonrpc_error(None, -32600, "Invalid Request")
+
         method = request.get("method", "")
         rpc_id = request.get("id")
-        params = request.get("params", {})
+        params = request.get("params", {}) if isinstance(request.get("params"), dict) else {}
         meta = params.get("_meta") if isinstance(params, dict) else None
 
         _log(
@@ -499,6 +514,10 @@ class MCPHandler:
             meta=meta,
             latency_ms=timer.ms(),
         )
+
+        # Notification (no id) → 202 for any method
+        if "id" not in request:
+            return 202, None
 
         if method == "initialize":
             result = await self._handle_initialize(params)
@@ -520,9 +539,13 @@ class MCPHandler:
         return 200, _jsonrpc_error(rpc_id, -32601, f"Method not found: {method}")
 
     async def _handle_initialize(self, params: dict[str, Any]) -> dict[str, Any]:
-        client_version = params.get("protocolVersion", "2024-11-05")
+        client_version = params.get("protocolVersion", "")
+        if client_version in _SUPPORTED_PROTOCOL_VERSIONS:
+            reply_version = client_version
+        else:
+            reply_version = _SUPPORTED_PROTOCOL_VERSIONS[0]
         return {
-            "protocolVersion": client_version,
+            "protocolVersion": reply_version,
             "capabilities": {"tools": {}},
             "serverInfo": {
                 "name": "refill-mcp",
@@ -549,6 +572,14 @@ class MCPHandler:
     async def _handle_tool_call(self, params: dict[str, Any], trace_id: str) -> dict[str, Any]:
         name = params.get("name", "")
         arguments = params.get("arguments", {}) or {}
+        meta = params.get("_meta") if isinstance(params, dict) else None
+        conversation_id = meta.get("telnyx_conversation_id") if isinstance(meta, dict) else None
+
+        # Resolve trace_id: use argument if present and real; otherwise fall back to request trace_id
+        arg_trace_id = arguments.get("trace_id", "")
+        if not arg_trace_id or "{{" in str(arg_trace_id):
+            arg_trace_id = trace_id
+
         timer = _Timer()
         outcome = "ok"
         cache_status = None
@@ -556,42 +587,42 @@ class MCPHandler:
 
         try:
             if name == "verify_identity":
-                result = await self._tool_verify_identity(arguments, trace_id)
-                _log("mcp_tool", trace_id=trace_id, tool=name, outcome=result.get("outcome", "ok"), latency_ms=timer.ms())
+                result = await self._tool_verify_identity(arguments, arg_trace_id)
+                _log("mcp_tool", trace_id=arg_trace_id, tool=name, conversation_id=conversation_id, outcome=result.get("outcome", "ok"), latency_ms=timer.ms())
                 return result["mcp_result"]
 
             if name == "list_prescriptions":
-                result = await self._tool_list_prescriptions(arguments, trace_id)
-                _log("mcp_tool", trace_id=trace_id, tool=name, outcome=result.get("outcome", "ok"), latency_ms=timer.ms())
+                result = await self._tool_list_prescriptions(arguments, arg_trace_id)
+                _log("mcp_tool", trace_id=arg_trace_id, tool=name, conversation_id=conversation_id, outcome=result.get("outcome", "ok"), latency_ms=timer.ms())
                 return result["mcp_result"]
 
             if name == "request_refill":
-                result = await self._tool_request_refill(arguments, trace_id)
-                _log("mcp_tool", trace_id=trace_id, tool=name, outcome=result.get("outcome", "ok"), latency_ms=timer.ms())
+                result = await self._tool_request_refill(arguments, arg_trace_id)
+                _log("mcp_tool", trace_id=arg_trace_id, tool=name, conversation_id=conversation_id, outcome=result.get("outcome", "ok"), latency_ms=timer.ms())
                 return result["mcp_result"]
 
             if name == "get_refill_status":
-                result = await self._tool_get_refill_status(arguments, trace_id)
-                _log("mcp_tool", trace_id=trace_id, tool=name, outcome=result.get("outcome", "ok"), latency_ms=timer.ms())
+                result = await self._tool_get_refill_status(arguments, arg_trace_id)
+                _log("mcp_tool", trace_id=arg_trace_id, tool=name, conversation_id=conversation_id, outcome=result.get("outcome", "ok"), latency_ms=timer.ms())
                 return result["mcp_result"]
 
             if name == "get_medication_info":
-                result = await self._tool_get_medication_info(arguments, trace_id)
+                result = await self._tool_get_medication_info(arguments, arg_trace_id)
                 cache_status = result.get("cache")
                 upstream_ms = result.get("upstream_ms")
-                _log("mcp_tool", trace_id=trace_id, tool=name, outcome=result.get("outcome", "ok"), cache=cache_status, upstream_ms=upstream_ms, latency_ms=timer.ms())
+                _log("mcp_tool", trace_id=arg_trace_id, tool=name, conversation_id=conversation_id, outcome=result.get("outcome", "ok"), cache=cache_status, upstream_ms=upstream_ms, latency_ms=timer.ms())
                 return result["mcp_result"]
 
             if name == "get_pharmacy_info":
-                result = await self._tool_get_pharmacy_info(arguments, trace_id)
-                _log("mcp_tool", trace_id=trace_id, tool=name, outcome=result.get("outcome", "ok"), latency_ms=timer.ms())
+                result = await self._tool_get_pharmacy_info(arguments, arg_trace_id)
+                _log("mcp_tool", trace_id=arg_trace_id, tool=name, conversation_id=conversation_id, outcome=result.get("outcome", "ok"), latency_ms=timer.ms())
                 return result["mcp_result"]
 
             outcome = "unknown_tool"
             return self._error(f"Unknown tool: {name}")
 
         except Exception as exc:
-            _log("mcp_tool", trace_id=trace_id, tool=name, outcome="error", error=str(exc), latency_ms=timer.ms())
+            _log("mcp_tool", trace_id=arg_trace_id, tool=name, conversation_id=conversation_id, outcome="error", error=str(exc), latency_ms=timer.ms())
             return self._error(f"Internal error processing {name}. Please try again or ask for a pharmacist.")
 
     def _success(self, data: Any) -> dict[str, Any]:
@@ -893,9 +924,16 @@ class App:
         self._mcp = MCPHandler(_KV(_client(), _KV_NAMESPACE_ID), _client())
 
     async def handle(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
-        method = scope.get("method", "GET")
-        path = scope.get("path", "/")
         trace_id = _new_trace_id()
+        try:
+            await self._handle(scope, receive, send, trace_id)
+        except Exception as exc:
+            _log("unhandled_error", trace_id=trace_id, error_type=type(exc).__name__, error=str(exc))
+            await self._send_json(send, 500, {"error": "internal"})
+
+    async def _handle(self, scope: dict[str, Any], receive: Any, send: Any, trace_id: str) -> None:
+        method = scope.get("method", "GET")
+        path = scope.get("path", "/").rstrip("/") or "/"
 
         # Read body
         body_parts: list[bytes] = []
@@ -920,9 +958,11 @@ class App:
                 key = h[0].decode("latin-1").lower() if isinstance(h[0], bytes) else str(h[0]).lower()
                 if key == "authorization":
                     val = h[1].decode("latin-1") if isinstance(h[1], bytes) else str(h[1])
-                    if val.lower().startswith("bearer ") and val[7:] == _MCP_TOKEN:
-                        auth_ok = True
-                        break
+                    if val.lower().startswith("bearer "):
+                        token = val[7:]
+                        if hmac.compare_digest(token, _MCP_TOKEN):
+                            auth_ok = True
+                            break
             if _MCP_TOKEN and not auth_ok:
                 _log("mcp_request", trace_id=trace_id, method="auth", outcome="unauthorized", header_names=header_names)
                 await self._send_json(send, 401, {"error": "unauthorized"})
@@ -933,7 +973,10 @@ class App:
                 await send({
                     "type": "http.response.start",
                     "status": status,
-                    "headers": [[b"content-type", b"application/json"]],
+                    "headers": [
+                        [b"content-type", b"application/json"],
+                        [b"cache-control", b"no-store"],
+                    ],
                 })
                 await send({
                     "type": "http.response.body",
@@ -949,6 +992,10 @@ class App:
             return
 
         if method == "GET" and path == "/mcp":
+            await self._send_json(send, 405, {"error": "method not allowed"})
+            return
+
+        if method == "DELETE" and path == "/mcp":
             await self._send_json(send, 405, {"error": "method not allowed"})
             return
 
@@ -988,7 +1035,10 @@ class App:
         await send({
             "type": "http.response.start",
             "status": status,
-            "headers": [[b"content-type", b"application/json"]],
+            "headers": [
+                [b"content-type", b"application/json"],
+                [b"cache-control", b"no-store"],
+            ],
         })
         await send({
             "type": "http.response.body",
