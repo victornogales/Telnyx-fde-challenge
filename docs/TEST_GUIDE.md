@@ -448,32 +448,34 @@ Setup: Pre-Test Setup.
 
 ### Scenario 6: After-Hours Mode
 
-Setup: Enable flag BEFORE calling.
+**Setup:** Use the toggle script to switch to after-hours mode:
 
-Invoke-RestMethod -Uri "https://api.telnyx.com/v2/storage/kvs/$env:KV_NAMESPACE_ID/keys/flag%2Fafter_hours_mode" `
-  -Method PUT `-Headers @{
-    "Authorization" = "Bearer $env:TELNYX_API_KEY"
-    "Content-Type" = "application/json"
-  } `-Body (@{ value = "true" } | ConvertTo-Json)
+```powershell
+.\scripts\toggle-after-hours.ps1
+```
+
+The script reads the current flag value, shows it, and asks for confirmation before toggling.
 
 | Step | You Say | Expected Response |
 |---|---|---|
-| 1 | Dial | Greeting + "Maple Pharmacy is currently closed..." |
-| 2 | "I want to refill" | "We can't process refills after hours..." |
+| 1 | Dial | Greeting + "Maple Pharmacy is currently closed. Our hours are {{pharmacy_hours}}." |
+| 2 | "I want to refill" | n_after_hours prompt handles the request. Assistant may offer callback or transfer. |
 
-Reset after test: set flag to false.
+**Reset after test:** Run the same script again to toggle back to normal hours.
 
 ---
 
 ### Scenario 7: Refills Disabled
 
-Setup: Disable refills flag.
+**Setup:** Disable refills flag.
 
+```powershell
 Invoke-RestMethod -Uri "https://api.telnyx.com/v2/storage/kvs/$env:KV_NAMESPACE_ID/keys/flag%2Frefills_enabled" `
-  -Method PUT `-Headers @{
+  -Method PUT -Headers @{
     "Authorization" = "Bearer $env:TELNYX_API_KEY"
     "Content-Type" = "application/json"
-  } `-Body (@{ value = "false" } | ConvertTo-Json)
+  } -Body (@{ value = "false" } | ConvertTo-Json)
+```
 
 | Step | You Say | Expected Response |
 |---|---|---|
