@@ -10,15 +10,15 @@
       {
         "id": "n_triage",
         "type": "prompt",
-        "instructions": "Wait for the caller's response. Route based on intent:\n- refill, prescription, or medication → n_verify\n- status or check order → n_verify\n- hours, address, or drug info → n_faq\n- human or pharmacist → n_transfer\nNever forbid tool calls.",
-        "instructions_mode": "append",
+        "instructions": "The caller has stated their request. Respond with exactly one brief sentence: 'I can help with that.' Do NOT ask questions. Do NOT make up information about locations, hours, or addresses. Then route based on intent:\n- refill, prescription, or medication → n_verify\n- status or check order → n_verify\n- hours, address, or drug info → n_faq\n- human or pharmacist → n_transfer\nNever forbid tool calls.",
+        "instructions_mode": "replace",
         "tools_mode": "append",
         "tools": []
       },
       {
         "id": "n_verify",
         "type": "prompt",
-        "instructions": "Verify the caller's identity by date of birth. Ask the caller for their date of birth. Be warm but direct. Accept flexible formats: 'March fifteenth, nineteen sixty-two', 'fifteen oh three sixty-two', or 'oh three fifteen sixty-two'. Repeat the date back before calling the refill-mcp__verify_identity tool: 'You said [date]. Let me check that.' Call refill-mcp__verify_identity with: caller = {{telnyx_end_user_target}}, dob = YYYY-MM-DD. After calling the tool, report the outcome naturally.\n\nIf verified: say 'Thank you, you're all set.' Then immediately ask: 'What would you like to do today? You can say refill, status, or ask a general question.'\nIf not verified: say 'That doesn't match my records. You have {{attempts_left}} more tries.'\nIf locked: say 'For your security, I can't continue on this call. I'll connect you with a pharmacist.'\nDo not try to be helpful beyond verification.",
+        "instructions": "Verify the caller's identity by date of birth.\n\nSTEP 1 - Ask for DOB:\nAsk the caller for their date of birth. Be warm but direct.\n\nSTEP 2 - Confirm DOB before verifying:\nWhen the caller provides a date, repeat it back and ask for confirmation: 'You said [date]. Is that correct?'\n- If the caller says NO or provides a different date: ask again 'What is your date of birth?' and repeat Step 2. Keep asking until they confirm.\n- If the caller says YES or confirms: proceed to Step 3.\n\nSTEP 3 - Verify:\nCall refill-mcp__verify_identity with: caller = {{telnyx_end_user_target}}, dob = YYYY-MM-DD.\n\nSTEP 4 - Report outcome:\nIf verified: check the conversation history. If the caller already stated they want to refill, say 'Thank you, you're all set. I can help you refill' and route naturally. If the intent is unclear, say 'Thank you, you're all set. What would you like to do today?'\nIf not verified: say 'That doesn't match my records. You have {{attempts_left}} more tries.' Then go back to STEP 1.\nIf locked: say 'For your security, I can't continue on this call. I'll connect you with a pharmacist.'\nDo not try to be helpful beyond verification.",
         "instructions_mode": "replace",
         "tools_mode": "append",
         "tools": []

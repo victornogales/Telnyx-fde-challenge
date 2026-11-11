@@ -265,15 +265,18 @@ Setup: Run Pre-Test Setup.
 |---|---|---|
 | 1 | Dial +442045202115 | "Thanks for calling Maple Pharmacy. This call may be recorded. Hi Maria, how can I help you today?" |
 | 2 | "I want to refill" | "I can help. Please tell me your date of birth." |
-| 3 | "March 15 1962" | "Thank you. You're all set. What would you like to do today?" |
-| 4 | "Refill Lisinopril" | "I've submitted a refill for Lisinopril 10 mg..." |
+| 3 | "March 15 1962" | "You said March 15, 1962. Is that correct?" |
+| 3b | "Yes" | "Thank you. You're all set. I can help you refill." (proceeds to listing prescriptions) |
+| 4 | "Lisinopril" | "I've submitted a refill for Lisinopril 10 mg..." |
 | 5 | "No, goodbye" | "Thanks for calling Maple Pharmacy. Take care." |
 
 What confirms success:
 - [x] Opening within 1 second
 - [x] "Hi Maria" in opening
-- [x] DOB requested and accepted
-- [x] Refill submitted
+- [x] DOB requested
+- [x] **Assistant repeats DOB back and asks "Is that correct?"**
+- [x] Upon confirmation, assistant verifies and acknowledges prior intent (refill)
+- [x] Refill submitted without restating intent
 - [x] Graceful closing
 
 ---
