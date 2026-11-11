@@ -163,29 +163,59 @@ class _KV:
             "Content-Type": "application/json",
         }
 
-    async def get(self, key: str, timeout: float = 5.0) -> str | None:
+    async def get(self, key: str, timeout: float = 5.0) -> tuple[str | None, str]:
+        """Returns (value, source) where source is one of ok, 404, timeout, error."""
+        kv_timer = _Timer()
+        attempt = 0
+
         async def _do_get():
-            url = self._url(key)
+            nonlocal attempt
+            attempt += 1
             resp = await self._client.get(
-                url,
+                self._url(key),
                 headers=self._headers(),
                 timeout=timeout,
             )
-            _log("kv_get_debug", key=key, url=url, status=resp.status_code, body=resp.text[:200])
             if resp.status_code == 404:
-                return None
+                _log(
+                    "kv_get",
+                    key=key,
+                    attempt=attempt,
+                    status=404,
+                    ms=kv_timer.ms(),
+                    source="404",
+                )
+                return None, "404"
             resp.raise_for_status()
             data = resp.json()
-            # API returns root-level {"value": "..."} — try that first, fall back to nested
             if "value" in data:
-                return str(data["value"])
-            return data.get("data", {}).get("value")
+                return str(data["value"]), "ok"
+            return data.get("data", {}).get("value"), "ok"
 
         try:
             return await _retry_async(_do_get, attempts=3, base_delay_ms=100)
+        except asyncio.TimeoutError:
+            _log(
+                "kv_get",
+                key=key,
+                attempt=attempt,
+                status=-1,
+                ms=kv_timer.ms(),
+                source="timeout",
+            )
+            return None, "timeout"
         except Exception as exc:
-            _log("kv_get_error", key=key, error_type=type(exc).__name__, error=str(exc))
-            return None
+            _log(
+                "kv_get",
+                key=key,
+                attempt=attempt,
+                status=-1,
+                ms=kv_timer.ms(),
+                source="error",
+                error_type=type(exc).__name__,
+                error=str(exc),
+            )
+            return None, "error"
 
     async def put(
         self,
@@ -214,17 +244,25 @@ class _KV:
             _log("kv_put_error", key=key, error_type=type(exc).__name__, error=str(exc))
             return False
 
-    async def get_flag(self, name: str, default: str = "false") -> str:
+    async def get_flag(
+        self, name: str, default: str = "false", flag_sources: dict[str, str] | None = None
+    ) -> str:
         now = time.monotonic()
         cached = self._flag_cache.get(name)
         if cached is not None:
             value, cached_at = cached
             if now - cached_at < self._cache_ttl_secs:
+                if flag_sources is not None:
+                    flag_sources[name] = "cache"
                 return value
-        value = await self.get(f"flag/{name}")
+        value, source = await self.get(f"flag/{name}")
         if value is None:
+            if flag_sources is not None:
+                flag_sources[name] = f"default_{source}"
             return default
         self._flag_cache[name] = (value, now)
+        if flag_sources is not None:
+            flag_sources[name] = source
         return value
 
 
@@ -250,7 +288,7 @@ def _client() -> httpx.AsyncClient:
     return _HTTP_CLIENT
 
 
-_DEPLOY_TS = "2026-11-11T19:30Z"
+_DEPLOY_TS = "2026-11-11T19:45Z"
 
 _KV_NAMESPACE_ID = os.environ.get("KV_NAMESPACE_ID", "3208b4c8-7ac1-4f42-a73d-ab9bfd4fc8ee")
 
@@ -364,19 +402,6 @@ class App:
             )
             await self._send_dynamic_vars(send, PARTIAL_DEFAULTS, trace_id)
             return
-        except Exception as exc:
-            _log(
-                "webhook",
-                trace_id=trace_id,
-                caller_key=caller,
-                outcome="fallback",
-                patient_name=patient_name,
-                error_type=type(exc).__name__,
-                error=str(exc),
-                total_ms=timer.ms(),
-            )
-            await self._send_dynamic_vars(send, PARTIAL_DEFAULTS, trace_id)
-            return
 
         vars_out = dict(PARTIAL_DEFAULTS)
         vars_out["trace_id"] = trace_id
@@ -421,13 +446,24 @@ class App:
                 "Thanks for your call, goodbye."
             )
 
+        # Determine degraded / over-budget
+        degraded = (
+            gateway_result.get("_flags_error", "")
+            or vars_out["after_hours_mode"] != flags.get("after_hours_mode", "true")
+        )
         _log(
             "webhook",
             trace_id=trace_id,
             caller_key=caller,
             known=True,
+            event_type=event_type,
+            call_control_id=call_control_id,
+            synthetic=call_control_id.startswith(("raw-test", "poll", "debug", "test")) if call_control_id else False,
             locked=gateway_result.get("locked"),
-            flags=flags,
+            flag_sources=gateway_result.get("_flag_sources", {}),
+            dv_after_hours_mode=vars_out["after_hours_mode"],
+            degraded=degraded,
+            over_budget=timer.ms() > 1300,
             kv_ms=gateway_result.get("_kv_ms", 0),
             gateway_ms=gateway_result.get("_gateway_ms", 0),
             total_ms=timer.ms(),
@@ -445,18 +481,33 @@ class App:
     ) -> tuple[dict[str, str], dict[str, Any]]:
         kv_timer = _Timer()
         gw_timer = _Timer()
+        flag_sources: dict[str, str] = {}
 
         async def _flags() -> dict[str, str]:
-            refills = await asyncio.wait_for(kv.get_flag("refills_enabled", "true"), timeout=0.6)
-            after_hours = await asyncio.wait_for(kv.get_flag("after_hours_mode", "false"), timeout=0.6)
-            return {
-                "refills_enabled": refills or "true",
-                "after_hours_mode": after_hours or "false",
-            }
+            refills, after_hours = await asyncio.gather(
+                asyncio.wait_for(
+                    kv.get_flag("refills_enabled", "true", flag_sources=flag_sources),
+                    timeout=0.9,
+                ),
+                asyncio.wait_for(
+                    kv.get_flag("after_hours_mode", "false", flag_sources=flag_sources),
+                    timeout=0.9,
+                ),
+                return_exceptions=True,
+            )
+            out: dict[str, str] = {}
+            if isinstance(refills, Exception):
+                out["refills_enabled"] = "true"
+            else:
+                out["refills_enabled"] = refills or "true"
+            if isinstance(after_hours, Exception):
+                out["after_hours_mode"] = "false"
+            else:
+                out["after_hours_mode"] = after_hours or "false"
+            return out
 
         async def _gateway() -> dict[str, Any]:
             if skip_record_call:
-                # Idempotency: return a safe fallback so the rest of the handler works
                 return {
                     "callCount": 0,
                     "locked": False,
@@ -483,13 +534,43 @@ class App:
         flags_task = asyncio.create_task(_flags())
         gateway_task = asyncio.create_task(_gateway())
 
-        flags: dict[str, str] = {}
-        gateway_result: dict[str, Any] = {}
-
         done, pending = await asyncio.wait(
             [flags_task, gateway_task],
             return_when=asyncio.ALL_COMPLETED,
         )
+        for task in pending:
+            task.cancel()
+
+        flags: dict[str, str] = {}
+        gateway_result: dict[str, Any] = {}
+        excs = []
+
+        for task in done:
+            try:
+                val = task.result()
+                if task is flags_task:
+                    flags = val
+                else:
+                    gateway_result = val
+            except Exception as exc:
+                excs.append(exc)
+
+        gateway_result["_kv_ms"] = kv_timer.ms()
+        gateway_result["_flag_sources"] = flag_sources
+        flags_error = ""
+        if excs:
+            flags_error = f"{type(excs[0]).__name__}: {excs[0]}"
+        gateway_result["_flags_error"] = flags_error
+
+        _log(
+            "fetch_all_result",
+            flags=flags,
+            flag_sources=flag_sources,
+            gateway_keys=list(gateway_result.keys()),
+            exc_count=len(excs),
+        )
+
+        return flags, gateway_result
         for task in pending:
             task.cancel()
 
