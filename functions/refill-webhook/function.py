@@ -308,9 +308,13 @@ class App:
         # Resolve patient name immediately (instant, no RPC)
         patient_name = _find_patient_name(end_user)
 
-        # Partial defaults that always include the name, even on timeout
+        # Partial defaults that always include the name and greeting, even on timeout
         PARTIAL_DEFAULTS = dict(SAFE_DEFAULTS)
         PARTIAL_DEFAULTS["patient_first_name"] = patient_name
+        if patient_name:
+            PARTIAL_DEFAULTS["greeting_suffix"] = f" Hi {patient_name}, how can I help you today?"
+        else:
+            PARTIAL_DEFAULTS["greeting_suffix"] = " How can I help you today?"
 
         try:
             result = await asyncio.wait_for(
