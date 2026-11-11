@@ -198,10 +198,25 @@ Correct architecture:
 
 - Phone +15550000001 is verified in Telnyx portal
 - You can dial +442045202115
-- Environment variables set:
-  TELNYX_API_KEY
-  INTERNAL_TOKEN
-  KV_NAMESPACE_ID
+- **Environment variables set** (see below)
+
+### Required Environment Variables
+
+Set these in PowerShell before any test:
+
+```powershell
+$env:TELNYX_API_KEY    = "KEY018_..."
+$env:INTERNAL_TOKEN    = "..."
+$env:KV_NAMESPACE_ID   = "3208b4c8-7ac1-4f42-a73d-ab9bfd4fc8ee"
+```
+
+| Variable | Where to Find It | Example |
+|---|---|---|
+| **TELNYX_API_KEY** | Telnyx Portal -> API Keys | `KEY018_abc123...` |
+| **INTERNAL_TOKEN** | Run: `telnyx-edge secrets list` or check `.env` | `S-xxxxxxxx...` |
+| **KV_NAMESPACE_ID** | Telnyx Portal -> Storage -> KV Namespaces, or check `progress.md` | `3208b4c8-7ac1-4f42-a73d-ab9bfd4fc8ee` |
+
+**Note:** The KV_NAMESPACE_ID for this project is `3208b4c8-7ac1-4f42-a73d-ab9bfd4fc8ee`.
 
 ### Terminal Setup
 
@@ -244,19 +259,38 @@ Reset complete. Ready to test.
 **Manual way** (if the script doesn't work):
 
 ```powershell
+# 1. Set variables (if not already set)
+$env:TELNYX_API_KEY    = "YOUR_API_KEY"
+$env:INTERNAL_TOKEN    = "YOUR_INTERNAL_TOKEN"
+$env:KV_NAMESPACE_ID   = "3208b4c8-7ac1-4f42-a73d-ab9bfd4fc8ee"
+
+# 2. Compute caller key
 $e164 = "+15550000001"
 $callerKey = ([System.Security.Cryptography.SHA256]::Create().ComputeHash([System.Text.Encoding]::UTF8.GetBytes($e164)) | ForEach-Object { $_.ToString("x2") }) -join "" | ForEach-Object { $_.Substring(0,16) }
 
-Invoke-RestMethod -Uri "https://api.telnyx.com/v2/edge/functions/caller-session/rpc" `
-  -Method POST `-Headers @{
-    "Authorization" = "Bearer $env:TELNYX_API_KEY"
+# 3. Reset actor state via direct RPC URL
+Invoke-RestMethod -Uri "https://caller-session-51645523-7.telnyxcompute.com/rpc" `
+  -Method POST -Headers @{
     "Content-Type" = "application/json"
     "X-Internal-Token" = $env:INTERNAL_TOKEN
     "X-Trace-Id" = "reset_$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())"
-  } `-Body (@{
-    method = "recordVerificationAttempt"
+  } -Body (@{
+    method = "resetState"
     caller_key = $callerKey
-    args = @{ success = $true; traceId = "reset" }
+    args = @{ traceId = "reset"; full = $true }
+  } | ConvertTo-Json)
+
+# 4. Reset feature flags
+Invoke-RestMethod -Uri "https://api.telnyx.com/v2/storage/kvs/$env:KV_NAMESPACE_ID/keys/flag%2Frefills_enabled" `
+  -Method PUT -Headers @{ "Authorization"="Bearer $env:TELNYX_API_KEY"; "Content-Type"="application/json" } `
+  -Body (@{ value = "true" } | ConvertTo-Json)
+
+Invoke-RestMethod -Uri "https://api.telnyx.com/v2/storage/kvs/$env:KV_NAMESPACE_ID/keys/flag%2Fafter_hours_mode" `
+  -Method PUT -Headers @{ "Authorization"="Bearer $env:TELNYX_API_KEY"; "Content-Type"="application/json" } `
+  -Body (@{ value = "false" } | ConvertTo-Json)
+
+Write-Host "Reset complete."
+```
   } | ConvertTo-Json) -ErrorAction SilentlyContinue
 
 Invoke-RestMethod -Uri "https://api.telnyx.com/v2/storage/kvs/$env:KV_NAMESPACE_ID/keys/flag%2Frefills_enabled" `
