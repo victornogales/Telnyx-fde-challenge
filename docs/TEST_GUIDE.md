@@ -552,9 +552,10 @@ What to look for:
    - Impact: Caller may think assistant is stuck. Saying "I am here" recovers the flow — LLM sees its prior confirmation in history and repeats it.
    - Not fixable in application code. Documented as platform limitation.
 
-8. Transfer Failure Messaging (Fixed 2026-11-11):
-   - `n_transfer_failed` now says: "I couldn't reach a pharmacist right now. Thanks for your call, goodbye."
-   - Previous message was only "Thanks for your call, goodbye." — callers didn't realize the transfer had actually failed.
+8. Transfer Failure Messaging (Dynamic 2026-11-11):
+   - `transfer_fail_message` is pre-computed by webhook based on `after_hours_mode`
+   - Normal hours: "I couldn't reach a pharmacist right now. Please call back later. Thanks for your call, goodbye."
+   - After-hours: "I couldn't reach a pharmacist right now, as we're currently closed. Please call back during opening hours: {{pharmacy_hours}}. Thanks for your call, goodbye."
 
 ---
 

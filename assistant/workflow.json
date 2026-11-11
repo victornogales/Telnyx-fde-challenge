@@ -82,7 +82,7 @@
       {
         "id": "n_transfer_failed",
         "type": "speak",
-        "message": "I couldn't reach a pharmacist right now. Thanks for your call, goodbye."
+        "message": "{{transfer_fail_message}}"
       },
       {
         "id": "n_closing",

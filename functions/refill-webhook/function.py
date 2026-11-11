@@ -260,6 +260,7 @@ SAFE_DEFAULTS: dict[str, str] = {
     "after_hours_mode": "false",
     "open_refill_count": "0",
     "pharmacy_hours": "8am to 8pm, Monday to Saturday",
+    "transfer_fail_message": "I couldn't reach a pharmacist right now. Thanks for your call, goodbye.",
 }
 
 
@@ -363,6 +364,20 @@ class App:
         # Flags from KV
         vars_out["refills_enabled"] = flags.get("refills_enabled", "true")
         vars_out["after_hours_mode"] = flags.get("after_hours_mode", "false")
+
+        # Transfer failure message contextual on after-hours
+        _pharmacy_hours = vars_out.get("pharmacy_hours", "8am to 8pm, Monday to Saturday")
+        if vars_out.get("after_hours_mode") == "true":
+            vars_out["transfer_fail_message"] = (
+                f"I couldn't reach a pharmacist right now, as we're currently closed. "
+                f"Please call back during opening hours: {_pharmacy_hours}. "
+                "Thanks for your call, goodbye."
+            )
+        else:
+            vars_out["transfer_fail_message"] = (
+                "I couldn't reach a pharmacist right now. Please call back later. "
+                "Thanks for your call, goodbye."
+            )
 
         _log(
             "webhook",
