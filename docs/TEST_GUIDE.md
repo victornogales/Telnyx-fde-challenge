@@ -220,8 +220,30 @@ Window 3: Actor logs
 
 ## Pre-Test Setup
 
-Run this before every independent scenario:
+**Quick way:** Run the reset script:
 
+```powershell
+.\scripts\reset-test.ps1
+```
+
+**What it does:**
+1. Computes Maria's caller key from +15550000001
+2. Resets actor state (failed attempts, lock status, refills)
+3. Resets feature flags: refills_enabled=true, after_hours=false
+
+**Sample output:**
+```
+Caller key: 8e89f1d43d07b82d
+Resetting actor state ... OK
+Resetting flags ... OK
+Reset complete. Ready to test.
+```
+
+---
+
+**Manual way** (if the script doesn't work):
+
+```powershell
 $e164 = "+15550000001"
 $callerKey = ([System.Security.Cryptography.SHA256]::Create().ComputeHash([System.Text.Encoding]::UTF8.GetBytes($e164)) | ForEach-Object { $_.ToString("x2") }) -join "" | ForEach-Object { $_.Substring(0,16) }
 
