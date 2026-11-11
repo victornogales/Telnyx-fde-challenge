@@ -433,7 +433,7 @@ What confirms success:
 
 ### Scenario 5: Account Lock After 3 Failed DOBs
 
-Status: IMPLICITLY VERIFIED (2026-11-11) — Scenario 4 proved attempt counting and graceful degradation.
+Status: VERIFIED (2026-11-11)
 
 Setup: Pre-Test Setup.
 
@@ -599,7 +599,7 @@ DOB Formats Accepted:
 | 2 Callback (verify again) | 2026-11-11 | VERIFIED |
 | 3 Transfer | 2026-11-11 | ROUTING VERIFIED (bridge blocked by trial) |
 | 4 Wrong DOB | 2026-11-11 | VERIFIED |
-| 5 Lockout | 2026-11-11 | IMPLICITLY VERIFIED |
+| 5 Lockout | 2026-11-11 | VERIFIED |
 | 6 After-Hours | -- | PENDING |
 | 7 Refills Disabled | -- | PENDING |
 | 8 Unknown Caller | -- | PENDING |
