@@ -9,6 +9,7 @@ const ALLOWED_METHODS = new Set([
   "addRefill",
   "getRefills",
   "setLastIntent",
+  "resetState",
   "alarm",
 ]);
 

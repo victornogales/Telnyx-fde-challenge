@@ -35,10 +35,10 @@ export class CallerSession extends StatefulActor {
 
     await this.ctx.storage.put("callCount", callCount);
     await this.ctx.storage.put("lastCallAt", Date.now());
-    // Security: reset verification and attempts on every new call
+    // Security: reset verification status on every new call (caller must re-verify each time)
     await this.ctx.storage.put("verifiedUntil", 0);
-    await this.ctx.storage.put("failedAttempts", 0);
-    await this.ctx.storage.put("lockedUntil", 0);
+    // NOTE: failedAttempts and lockedUntil are intentionally persisted across calls
+    // to prevent brute-force attacks. Use resetState() to clear them for testing.
 
     logLine({
       actor: "CallerSession",
@@ -61,6 +61,7 @@ export class CallerSession extends StatefulActor {
   }): Promise<{
     verified: boolean;
     failedAttempts: number;
+    attemptsLeft: number;
     locked: boolean;
     lockedUntil?: number;
   }> {
@@ -77,7 +78,7 @@ export class CallerSession extends StatefulActor {
         outcome: "already_locked",
         latency_ms: Date.now() - start,
       });
-      return { verified: false, failedAttempts, locked: true, lockedUntil };
+      return { verified: false, failedAttempts, attemptsLeft: args.maxAttempts - failedAttempts, locked: true, lockedUntil };
     }
 
     if (args.success) {
@@ -93,7 +94,7 @@ export class CallerSession extends StatefulActor {
         outcome: "success",
         latency_ms: Date.now() - start,
       });
-      return { verified: true, failedAttempts: 0, locked: false };
+      return { verified: true, failedAttempts: 0, attemptsLeft: args.maxAttempts, locked: false };
     }
 
     failedAttempts += 1;
@@ -117,6 +118,7 @@ export class CallerSession extends StatefulActor {
     return {
       verified: false,
       failedAttempts,
+      attemptsLeft: Math.max(0, args.maxAttempts - failedAttempts),
       locked: newLockedUntil > 0,
       lockedUntil: newLockedUntil || undefined,
     };
@@ -188,6 +190,47 @@ export class CallerSession extends StatefulActor {
       intent: args.intent,
       latency_ms: Date.now() - start,
     });
+  }
+
+  async resetState(args: { traceId: string; full?: boolean }): Promise<{ ok: boolean; cleared: string[] }> {
+    const start = Date.now();
+    const cleared: string[] = [];
+
+    // Always clear security state
+    await this.ctx.storage.put("failedAttempts", 0);
+    cleared.push("failedAttempts");
+
+    await this.ctx.storage.put("lockedUntil", 0);
+    cleared.push("lockedUntil");
+
+    await this.ctx.storage.put("verifiedUntil", 0);
+    cleared.push("verifiedUntil");
+
+    // On full reset (default), also clear call history and refills
+    if (args.full !== false) {
+      await this.ctx.storage.put("callCount", 0);
+      cleared.push("callCount");
+
+      await this.ctx.storage.put("refills", []);
+      cleared.push("refills");
+
+      await this.ctx.storage.put("lastIntent", "");
+      cleared.push("lastIntent");
+
+      await this.ctx.storage.put("lastCallAt", 0);
+      cleared.push("lastCallAt");
+    }
+
+    logLine({
+      actor: "CallerSession",
+      event: "resetState",
+      traceId: args.traceId,
+      full: args.full !== false,
+      cleared,
+      latency_ms: Date.now() - start,
+    });
+
+    return { ok: true, cleared };
   }
 
   async alarm(_info: unknown): Promise<void> {

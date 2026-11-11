@@ -58,7 +58,7 @@ try {
     # The invoke URL is fixed for this deployment
     $rpcUrl = "https://caller-session-51645523-7.telnyxcompute.com/rpc"
 
-    Invoke-RestMethod -Uri $rpcUrl `
+    $resp = Invoke-RestMethod -Uri $rpcUrl `
       -Method POST `
       -Headers @{
         "Content-Type"       = "application/json"
@@ -72,11 +72,17 @@ try {
           traceId = "reset"
           full    = $true
         }
-      } | ConvertTo-Json) | Out-Null
+      } | ConvertTo-Json)
 
-    Write-Host "OK" -ForegroundColor Green
+    if ($resp.ok -eq $true) {
+        Write-Host "OK (cleared: $($resp.result.cleared -join ', '))" -ForegroundColor Green
+    } else {
+        Write-Host "FAIL (actor error: $($resp.error))" -ForegroundColor Red
+        exit 1
+    }
 } catch {
-    Write-Host "WARN ($($_.Exception.Message))" -ForegroundColor Yellow
+    Write-Host "FAIL ($($_.Exception.Message))" -ForegroundColor Red
+    exit 1
 }
 
 # -------------------------------------------------------------
