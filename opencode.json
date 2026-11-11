@@ -1,0 +1,5 @@
+{
+  "plugins": ["@telnyx/opencode"],
+  "provider": "telnyx",
+  "model": "telnyx/moonshotai/Kimi-K3"
+}

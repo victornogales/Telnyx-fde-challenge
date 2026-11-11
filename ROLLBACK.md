@@ -1,51 +1,74 @@
 # Rollback Reference — RefillLine
 
-> **This file is part of commit `be0dab6`.** To rollback to this exact state: `git checkout be0dab6`
+> **Demo day freeze:** `git checkout demo-day` (tag points to `15cb7a6`)
 
-## Current Stable Commit
+## Demo Day Freeze
+
+```
+demo-day  →  15cb7a6
+```
+
+**Message:** `docs: finalize README, architecture, demo script, opencode.json for demo day freeze`
+
+**Date:** 2026-11-11
+
+**Contains everything needed for submission:**
+- `README.md` — setup, architecture, debugging story, phone number, URLs
+- `docs/architecture.md` — component diagrams, primitive choices, data flow
+- `DEMO_SCRIPT.md` — 10-minute walkthrough with fallback plans
+- `opencode.json` — Telnyx plugin active
+- `docs/TEST_GUIDE.md` — full test procedures for all scenarios
+- Working code for all 7 challenge requirements
+
+**Tag commands:**
+```bash
+# Jump to demo-day freeze
+git checkout demo-day
+
+# Or use the commit directly
+git checkout 15cb7a6
+```
+
+---
+
+## Previous Stable Commit
 
 ```
 be0dab6
 ```
 
-**Message:** `docs: add ROLLBACK.md and SESSION.md rollback reference — current stable c7eac3f`
+**Message:** `docs: add ROLLBACK.md and SESSION.md rollback reference`
 
-**Date:** 2026-11-11
+**Note:** Before README overhaul and demo script creation.
 
-**Contains:** `ROLLBACK.md`, `SESSION.md` rollback section, all working code (scenarios 1–6 verified)
-
-**Verified scenarios:** 1–6
-- 1. Happy path refill
-- 2. Callback (verify again)
-- 3. Transfer (routing verified)
-- 4. Wrong DOB retry
-- 5. Lockout after 3 failures
-- 6. After-hours (deterministic expression edge)
-
-**Dynamic variables driving routing:**
-- `after_hours_mode` → expression edge → `n_after_hours`
-- `account_locked` → expression edge → `n_locked`
+---
 
 ## How to Rollback
 
 ```bash
-# Reset to this exact commit (includes rollback reference)
+# To demo-day freeze (recommended):
+git checkout demo-day
+
+# To pre-freeze state:
 git checkout be0dab6
 
-# Or to the commit just before this docs commit (same code, no ROLLBACK.md)
+# To deterministic routing commit:
 git checkout c7eac3f
 
-# To go back to non-deterministic after-hours (LLM steering):
+# To non-deterministic after-hours:
 git checkout 72efe25
 ```
 
-## Commit History (Recent)
+---
 
-| Commit | Message | Date |
+## Commit History
+
+| Commit | Message | Tag |
 |---|---|---|
-| `be0dab6` | docs: add ROLLBACK.md and SESSION.md rollback ref | 2026-11-11 |
-| `c7eac3f` | docs: deterministic routing confirmed | 2026-11-11 |
-| `a7b7945` | feat: deterministic after-hours routing | 2026-11-11 |
-| `72efe25` | docs: update TEST_GUIDE with after-hours | 2026-11-11 |
-| `51fe449` | feat: polite hangup message | 2026-11-11 |
-| `6f75d8d` | fix: increase KV timeout | 2026-11-11 |
+| `15cb7a6` | docs: finalize README, architecture, demo script | **demo-day** |
+| `be0dab6` | docs: add ROLLBACK.md and SESSION.md rollback ref | — |
+| `c7eac3f` | docs: deterministic routing confirmed | — |
+| `a7b7945` | feat: deterministic after-hours routing | — |
+| `72efe25` | docs: update TEST_GUIDE with after-hours | — |
+| `51fe449` | feat: polite hangup message | — |
+| `6f75d8d` | fix: increase KV timeout | — |
