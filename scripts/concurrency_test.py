@@ -5,12 +5,13 @@ Fires N parallel recordCall requests at the actor gateway for the same caller_ke
 Verifies the actor serializes them correctly (callCount == previous + N).
 """
 import asyncio
+import os
 import sys
 
 import httpx
 
 GATEWAY_URL = "https://caller-session-51645523-7.telnyxcompute.com/rpc"
-INTERNAL_TOKEN = "REPLACE_WITH_ENV_INTERNAL_TOKEN"  # <-- paste your real INTERNAL_TOKEN here
+INTERNAL_TOKEN = os.environ.get("INTERNAL_TOKEN", "")  # set via env var, never hardcode
 CALLER_KEY = "concurrency_test"
 CONCURRENCY = 20
 
