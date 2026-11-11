@@ -1,7 +1,7 @@
 # RefillLine Test Guide
 
 > **Last updated:** 2026-11-11
-> **Status:** Scenarios 1–5 verified. Scenarios 6–8 pending.
+> **Status:** Scenarios 1–6 verified. Scenarios 7–8 pending.
 > **Purpose:** Living document capturing architecture decisions, fixes, known issues, and complete test procedures.
 
 ---
@@ -100,8 +100,8 @@ refill-mcp (Python)
 | n_refill | prompt | List prescriptions |
 | n_confirm | prompt | Confirm and submit refill |
 | n_status | prompt | Check refill status |
+| n_status | prompt | Check refill status |
 | n_faq | prompt | Pharmacy info |
-| n_after_hours | prompt | Closed-hours message |
 | n_locked | speak | Lockout notice |
 | n_transfer_prompt | speak | "I'll transfer you now. Please hold." |
 | n_transfer | tool | Transfer call to pharmacist |
@@ -218,6 +218,40 @@ Correct architecture:
 New order: timeout → human → locked → after_hours → refill...
 
 **Impact:** "Speak to a pharmacist" now ALWAYS works, even when account is locked or during after-hours.
+
+---
+
+### Fix 8: After-Hours Inline Handling (Expression Edge Broken on Voice)
+
+**Problem:** Expression edge `after_hours_mode == "true"` on `n_triage` never fired on voice calls. After-hours callers were routed to normal DOB verification.
+
+**Root Cause:** Telnyx voice workflow routing evaluates custom variable expression edges independently of webhook-returned dynamic variables. Even with static default set to `"true"` and webhook returning `"true"`, the edge never matched.
+
+**Evidence:**
+- Diagnostic: set static default `after_hours_mode = "true"` → expression edge still didn't fire
+- LLM fallback edge also failed because model preferred refill edge over after-hours edge
+
+**Solution:** Remove `n_after_hours` node and all after-hours-specific edges. Handle after-hours entirely within `n_triage` instructions using `{{after_hours_mode}}` templating. LLM sees the flag value and produces the closed message inline.
+
+- Removed `e_triage_after_hours` (expression) and `e_triage_after_hours_llm`
+- Added `e_triage_done` edge from `n_triage` → `n_closing` for polite hangup
+- Gated LLM edges on `AND after_hours_mode is false` so model knows they're unavailable
+
+**Impact:** After-hours calls now correctly say the closed message and don't ask for DOB. Only "pharmacist" or "human" routes to transfer.
+
+---
+
+### Fix 9: Polite Hangup Message
+
+**Problem:** Hangup was abrupt — "Thanks for calling Maple Pharmacy. Take care." No personalization, no after-hours context.
+
+**Solution:** Introduce `closing_message` dynamic variable set by webhook:
+- **After-hours:** *"Thanks for calling Maple Pharmacy. We're currently closed. Please call back during business hours: {{pharmacy_hours}}. Take care, and have a great day."*
+- **Normal hours:** *"Thanks for calling Maple Pharmacy. We appreciate your call. Take care, and have a great day."*
+
+`n_closing` message changed from hardcoded text to `"{{closing_message}}"`.
+
+**Impact:** Consistent, polite, contextual closing on every call path.
 
 ---
 
@@ -448,20 +482,32 @@ Setup: Pre-Test Setup.
 
 ### Scenario 6: After-Hours Mode
 
-**Setup:** Use the toggle script to switch to after-hours mode:
+**Setup:** Set the after-hours flag:
 
 ```powershell
-.\scripts\toggle-after-hours.ps1
+Invoke-RestMethod -Uri "https://api.telnyx.com/v2/storage/kvs/$env:KV_NAMESPACE_ID/keys/flag%2Fafter_hours_mode" `
+  -Method PUT -Headers @{
+    "Authorization" = "Bearer $env:TELNYX_API_KEY"
+    "Content-Type" = "application/json"
+  } -Body (@{ value = "true" } | ConvertTo-Json)
 ```
-
-The script reads the current flag value, shows it, and asks for confirmation before toggling.
 
 | Step | You Say | Expected Response |
 |---|---|---|
-| 1 | Dial | Greeting + "Maple Pharmacy is currently closed. Our hours are {{pharmacy_hours}}." |
-| 2 | "I want to refill" | n_after_hours prompt handles the request. Assistant may offer callback or transfer. |
+| 1 | Dial | Greeting + "Hi Maria, how can I help you today? Please note, Maple Pharmacy is currently closed. Our hours are 8am to 8pm, Monday to Saturday." |
+| 2 | "I want to refill" | "Maple Pharmacy is currently closed, so prescription refills, prescription lookups, and in-store pickup are unavailable right now. Our hours are 8am to 8pm, Monday to Saturday. Please call back during business hours." |
+| 3 | "ok" / "bye" / silence | "Thanks for calling Maple Pharmacy. We're currently closed. Please call back during business hours: 8am to 8pm, Monday to Saturday. Take care, and have a great day." → hangup |
 
-**Reset after test:** Run the same script again to toggle back to normal hours.
+**Key behavior:** Assistant stays in `n_triage` when after-hours (no DOB verification). Only "pharmacist" or "human" triggers transfer. The `e_triage_done` edge catches "bye" and routes to `n_closing` → polite hangup.
+
+**Reset after test:**
+```powershell
+Invoke-RestMethod -Uri "https://api.telnyx.com/v2/storage/kvs/$env:KV_NAMESPACE_ID/keys/flag%2Fafter_hours_mode" `
+  -Method PUT -Headers @{
+    "Authorization" = "Bearer $env:TELNYX_API_KEY"
+    "Content-Type" = "application/json"
+  } -Body (@{ value = "false" } | ConvertTo-Json)
+```
 
 ---
 
@@ -554,9 +600,13 @@ What to look for:
    - Impact: Caller may think assistant is stuck. Saying "I am here" recovers the flow — LLM sees its prior confirmation in history and repeats it.
    - Not fixable in application code. Documented as platform limitation.
 
-8. **KV API Response Format Bug (Fixed 2026-11-11)**
-   - Symptom: `after_hours_mode` and `refills_enabled` flags appeared to have no effect.
-   - Root cause: KV REST GET returns `{"value": "..."}` directly — no `data` wrapper. Webhook code expected `data.value` → always got `None` → always fell back to defaults.
+8. **Expression Edges with Custom Variables Do Not Work on Voice Calls (Known Platform Limitation)**
+   - **Discovery date:** 2026-11-11
+   - **Symptom:** Expression edge `after_hours_mode == "true"` never fired, even with static default set to `"true"` and webhook returning `"true"`.
+   - **Root cause:** Telnyx voice workflow evaluates expression edges against static defaults or an internal value, not webhook-merged dynamic variables. This appears to be a platform limitation for custom variables.
+   - **Impact:** Any routing that depends on custom variable comparisons (bool, string) via expression edges will silently fail on voice calls.
+   - **Workaround:** Handle branching logic inline within prompt node instructions, using `{{variable}}` templating and LLM edges. Tested and verified working.
+   - **Status:** Mitigated via inline handling. Not reported to Telnyx yet.
    - Fix: Updated `_KV.get()` to try root-level `value` first, fall back to `data.value`.
    - Also fixed: `get_flag()` no longer caches fallback default values (prevents stale cached defaults).
 
@@ -591,13 +641,14 @@ DOB Formats Accepted:
 - [x] Scenario 3: Transfer (routing verified; bridge blocked by trial account)
 - [x] Scenario 4: Wrong DOB retry
 - [x] Scenario 5: Lockout after 3 failures
-- [ ] Scenario 6: After-hours
+- [x] Scenario 6: After-hours (inline handling, no DOB, polite hangup)
 - [ ] Scenario 7: Refills disabled
 - [ ] Scenario 8: Unknown caller
 - [x] Global: No 5-second silence
 - [x] Global: No "I'm still here" on opening
 - [x] Global: trace_id in all logs
 - [x] Global: No 500 errors
+- [x] Global: Polite closing message on every hangup
 
 ### Scenario Status
 
@@ -608,6 +659,6 @@ DOB Formats Accepted:
 | 3 Transfer | 2026-11-11 | ROUTING VERIFIED (bridge blocked by trial) |
 | 4 Wrong DOB | 2026-11-11 | VERIFIED |
 | 5 Lockout | 2026-11-11 | VERIFIED |
-| 6 After-Hours | -- | PENDING |
+| 6 After-Hours | 2026-11-11 | VERIFIED (inline n_triage, polite hangup) |
 | 7 Refills Disabled | -- | PENDING |
 | 8 Unknown Caller | -- | PENDING |
