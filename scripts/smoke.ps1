@@ -7,8 +7,11 @@ $ErrorActionPreference = "Stop"
 $MCP_URL = "https://refill-mcp-6a4810fb-9.telnyxcompute.com"
 $WEBHOOK_URL = "https://refill-webhook-8d5c4fc7-b.telnyxcompute.com"
 $GATEWAY_URL = "https://caller-session-51645523-7.telnyxcompute.com"
-$MCP_TOKEN = "REPLACE_WITH_ENV_MCP_TOKEN"
-$INTERNAL_TOKEN = (Get-Content ~/.telnyx-edge/config.toml | Select-String "api_key").Line.Split('"')[1]
+$MCP_TOKEN = $env:MCP_TOKEN
+if (-not $MCP_TOKEN) {
+    Write-Host "ERROR: set `$env:MCP_TOKEN first (same value as the MCP_TOKEN edge secret)." -ForegroundColor Red
+    exit 1
+}
 
 function Test-Health($name, $url) {
     Write-Host -NoNewline "Health $name ... "

@@ -1,5 +1,9 @@
 $MCP_URL = "https://refill-mcp-6a4810fb-9.telnyxcompute.com"
-$MCP_TOKEN = "REPLACE_WITH_ENV_MCP_TOKEN"
+$MCP_TOKEN = $env:MCP_TOKEN
+if (-not $MCP_TOKEN) {
+    Write-Host "ERROR: set `$env:MCP_TOKEN first (same value as the MCP_TOKEN edge secret)." -ForegroundColor Red
+    exit 1
+}
 
 Write-Host "=== MCP Server Diagnostics ===" -ForegroundColor Cyan
 Write-Host ""
