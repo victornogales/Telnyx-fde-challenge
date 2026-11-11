@@ -937,7 +937,7 @@ def _client() -> httpx.AsyncClient:
     return _HTTP_CLIENT
 
 
-_KV_NAMESPACE_ID = os.environ.get("KV_NAMESPACE_ID", "")
+_KV_NAMESPACE_ID = os.environ.get("KV_NAMESPACE_ID", "3208b4c8-7ac1-4f42-a73d-ab9bfd4fc8ee")
 
 
 class App:

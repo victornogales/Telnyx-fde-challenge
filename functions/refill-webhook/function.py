@@ -165,11 +165,13 @@ class _KV:
 
     async def get(self, key: str, timeout: float = 5.0) -> str | None:
         async def _do_get():
+            url = self._url(key)
             resp = await self._client.get(
-                self._url(key),
+                url,
                 headers=self._headers(),
                 timeout=timeout,
             )
+            _log("kv_get_debug", key=key, url=url, status=resp.status_code, body=resp.text[:200])
             if resp.status_code == 404:
                 return None
             resp.raise_for_status()
@@ -248,7 +250,9 @@ def _client() -> httpx.AsyncClient:
     return _HTTP_CLIENT
 
 
-_KV_NAMESPACE_ID = os.environ.get("KV_NAMESPACE_ID", "")
+_DEPLOY_TS = "2026-11-11T13:45Z"
+
+_KV_NAMESPACE_ID = os.environ.get("KV_NAMESPACE_ID", "3208b4c8-7ac1-4f42-a73d-ab9bfd4fc8ee")
 
 SAFE_DEFAULTS: dict[str, str] = {
     "trace_id": "",
@@ -368,6 +372,13 @@ class App:
         vars_out["refills_enabled"] = flags.get("refills_enabled", "true")
         vars_out["after_hours_mode"] = flags.get("after_hours_mode", "false")
 
+        # DEBUG: expose raw KV read results and build version
+        vars_out["_deploy_ts"] = _DEPLOY_TS
+        vars_out["_debug_flags_raw"] = json.dumps(flags)
+        vars_out["_debug_kv_ns"] = _KV_NAMESPACE_ID
+        vars_out["_debug_call_control"] = call_control_id
+        vars_out["_debug_flags_error"] = gateway_result.get("_flags_error", "")
+
         # Transfer failure message contextual on after-hours
         _pharmacy_hours = vars_out.get("pharmacy_hours", "8am to 8pm, Monday to Saturday")
         if vars_out.get("after_hours_mode") == "true":
@@ -409,8 +420,8 @@ class App:
 
         async def _flags() -> dict[str, str]:
             refills, after_hours = await asyncio.gather(
-                asyncio.wait_for(kv.get_flag("refills_enabled", "true"), timeout=0.4),
-                asyncio.wait_for(kv.get_flag("after_hours_mode", "false"), timeout=0.4),
+                asyncio.wait_for(kv.get_flag("refills_enabled", "true"), timeout=1.2),
+                asyncio.wait_for(kv.get_flag("after_hours_mode", "false"), timeout=1.2),
             )
             return {
                 "refills_enabled": refills or "true",
@@ -456,7 +467,10 @@ class App:
         for task in pending:
             task.cancel()
 
+        _log("fetch_all_done", flags_task_done=flags_task in done, gateway_task_done=gateway_task in done)
+
         excs = []
+        flags_error = ""
         for task in done:
             try:
                 val = task.result()
@@ -466,11 +480,16 @@ class App:
                     gateway_result = val
             except Exception as exc:
                 excs.append(exc)
+                if task is flags_task:
+                    flags_error = f"{type(exc).__name__}: {exc}"
 
         gateway_result["_kv_ms"] = kv_timer.ms()
+        gateway_result["_flags_error"] = flags_error
 
         if gateway_result.get("callCount") is None:
             raise excs[0] if excs else Exception("gateway_missing")
+
+        _log("fetch_all_result", flags=flags, gateway_keys=list(gateway_result.keys()), exc_count=len(excs))
 
         return flags, gateway_result
 
