@@ -84,11 +84,11 @@ async def test_happy_path(app, monkeypatch):
     responses = {
         "storage/kvs/test-ns/keys/flag%2Frefills_enabled": httpx.Response(
             200,
-            json={"data": {"value": "true"}},
+            json={"value": "true"},
         ),
         "storage/kvs/test-ns/keys/flag%2Fafter_hours_mode": httpx.Response(
             200,
-            json={"data": {"value": "false"}},
+            json={"value": "false"},
         ),
         "gateway.test/rpc": httpx.Response(
             200,
@@ -109,6 +109,8 @@ async def test_happy_path(app, monkeypatch):
 
     original_client = func_module._HTTP_CLIENT
     func_module._HTTP_CLIENT = mock_client
+    original_kv = getattr(func_module, "_KV_INSTANCE", None)
+    func_module._KV_INSTANCE = None
 
     send_calls = []
     payload = {
@@ -137,6 +139,7 @@ async def test_happy_path(app, monkeypatch):
         )
     finally:
         func_module._HTTP_CLIENT = original_client
+        func_module._KV_INSTANCE = original_kv
         await mock_client.aclose()
 
     assert send_calls[0]["status"] == 200
@@ -149,4 +152,77 @@ async def test_happy_path(app, monkeypatch):
     assert dv["last_intent"] == "refill"
     assert dv["refills_enabled"] == "true"
     assert dv["after_hours_mode"] == "false"
+    assert "How can I help you today?" in dv["greeting_suffix"]
+    assert "currently closed" not in dv["greeting_suffix"]
     assert dv["trace_id"].startswith("tr_")
+
+
+@pytest.mark.asyncio
+async def test_after_hours_flag_true(app, monkeypatch):
+    import function as func_module
+
+    responses = {
+        "storage/kvs/test-ns/keys/flag%2Frefills_enabled": httpx.Response(
+            200,
+            json={"value": "true"},
+        ),
+        "storage/kvs/test-ns/keys/flag%2Fafter_hours_mode": httpx.Response(
+            200,
+            json={"value": "true"},
+        ),
+        "gateway.test/rpc": httpx.Response(
+            200,
+            json={
+                "ok": True,
+                "result": {
+                    "callCount": 1,
+                    "locked": False,
+                    "openRefills": 0,
+                },
+            },
+        ),
+    }
+
+    mock_transport = _MockTransport(responses)
+    mock_client = httpx.AsyncClient(transport=mock_transport)
+
+    original_client = func_module._HTTP_CLIENT
+    func_module._HTTP_CLIENT = mock_client
+    original_kv = getattr(func_module, "_KV_INSTANCE", None)
+    func_module._KV_INSTANCE = None
+
+    send_calls = []
+    payload = {
+        "data": {
+            "event_type": "assistant.initialization",
+            "payload": {
+                "telnyx_end_user_target": "+15551234567",
+                "call_control_id": "v3:test",
+            },
+        }
+    }
+
+    async def receive():
+        return {
+            "type": "http.request",
+            "body": json.dumps(payload).encode(),
+            "more_body": False,
+        }
+
+    async def send(message):
+        send_calls.append(message)
+
+    try:
+        await app.handle(
+            {"method": "POST", "path": "/", "headers": []}, receive, send
+        )
+    finally:
+        func_module._HTTP_CLIENT = original_client
+        func_module._KV_INSTANCE = original_kv
+        await mock_client.aclose()
+
+    assert send_calls[0]["status"] == 200
+    body = json.loads(send_calls[1]["body"])
+    dv = body["dynamic_variables"]
+    assert dv["after_hours_mode"] == "true"
+    assert "currently closed" in dv["greeting_suffix"].lower()

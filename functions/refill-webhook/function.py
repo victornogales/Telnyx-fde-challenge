@@ -15,7 +15,7 @@ import httpx
 
 _FUNC_NAME = os.environ.get("FUNC_NAME", "unknown")
 _API_BASE = "https://api.telnyx.com/v2/storage/kvs"
-_TELNYX_API_KEY = os.environ.get("TELNYX_API_KEY", "")
+_TELNYX_API_KEY = os.environ.get("KV_API_KEY") or os.environ.get("TELNYX_API_KEY", "")
 _INTERNAL_TOKEN = os.environ.get("INTERNAL_TOKEN", "")
 _CALLER_SESSION_URL = os.environ.get("CALLER_SESSION_URL", "")
 
@@ -147,15 +147,15 @@ async def _session_call(
 
 
 class _KV:
-    def __init__(self, client: httpx.AsyncClient, namespace_id: str) -> None:
+    def __init__(self, client: httpx.AsyncClient, namespace_id: str, cache_ttl_secs: float = 3.0) -> None:
         self._client = client
-        self._ns = namespace_id
+        self._namespace_id = namespace_id
+        self._cache_ttl_secs = cache_ttl_secs
         self._flag_cache: dict[str, tuple[str, float]] = {}
-        self._cache_ttl_secs = 15.0
 
     def _url(self, key: str) -> str:
         encoded = urllib.parse.quote(key, safe="")
-        return f"{_API_BASE}/{self._ns}/keys/{encoded}"
+        return f"{_API_BASE}/{self._namespace_id}/keys/{encoded}"
 
     def _headers(self) -> dict[str, str]:
         return {
@@ -250,7 +250,7 @@ def _client() -> httpx.AsyncClient:
     return _HTTP_CLIENT
 
 
-_DEPLOY_TS = "2026-11-11T13:45Z"
+_DEPLOY_TS = "2026-11-11T14:15Z"
 
 _KV_NAMESPACE_ID = os.environ.get("KV_NAMESPACE_ID", "3208b4c8-7ac1-4f42-a73d-ab9bfd4fc8ee")
 
@@ -325,6 +325,9 @@ class App:
         else:
             PARTIAL_DEFAULTS["greeting_suffix"] = " How can I help you today?"
 
+        # After-hours notice will be appended after flags are fetched
+        _after_hours_notice: str = ""
+
         try:
             result = await asyncio.wait_for(
                 self._fetch_all(kv, caller, trace_id, call_control_id, skip_record_call=duplicate),
@@ -371,6 +374,13 @@ class App:
         # Flags from KV
         vars_out["refills_enabled"] = flags.get("refills_enabled", "true")
         vars_out["after_hours_mode"] = flags.get("after_hours_mode", "false")
+
+        # After-hours: prepend closed notice to greeting so caller hears it immediately
+        if vars_out.get("after_hours_mode") == "true":
+            hours = vars_out.get("pharmacy_hours", "8am to 8pm, Monday to Saturday")
+            vars_out["greeting_suffix"] += (
+                f" Please note, Maple Pharmacy is currently closed. Our hours are {hours}."
+            )
 
         # DEBUG: expose raw KV read results and build version
         vars_out["_deploy_ts"] = _DEPLOY_TS

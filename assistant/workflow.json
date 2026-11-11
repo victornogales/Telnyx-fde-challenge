@@ -10,7 +10,7 @@
       {
         "id": "n_triage",
         "type": "prompt",
-        "instructions": "The caller has stated their request. Respond with exactly one brief sentence: 'I can help with that.' Do NOT ask questions. Do NOT make up information about locations, hours, or addresses. Then route based on intent:\n- refill, prescription, or medication \u00e2\u2020\u2019 n_verify\n- status or check order \u00e2\u2020\u2019 n_verify\n- hours, address, or drug info \u00e2\u2020\u2019 n_faq\n- human or pharmacist \u00e2\u2020\u2019 n_transfer\nNever forbid tool calls.",
+        "instructions": "The caller has stated their request. Respond with exactly one brief sentence: 'I can help with that.' Do NOT ask questions. Do NOT make up information about locations, hours, or addresses. Then route based on intent:\n- refill, prescription, or medication → n_verify\n- status or check order → n_verify\n- hours, address, or drug info → n_faq\n- human or pharmacist → n_transfer\nNever forbid tool calls.",
         "instructions_mode": "replace",
         "tools_mode": "append",
         "tools": []
@@ -50,7 +50,7 @@
       {
         "id": "n_faq",
         "type": "prompt",
-        "instructions": "Answer general questions. Available tools: refill-mcp__get_pharmacy_info (hours, address, phone), refill-mcp__get_medication_info (what a medication is for). For medication questions: call refill-mcp__get_medication_info with name and trace_id. Read back only the purpose field \u00e2\u20ac\u201d up to 2 sentences. Never give medical advice. Route to pharmacist with 'Let me connect you with a pharmacist for that.'",
+        "instructions": "Answer general questions. Available tools: refill-mcp__get_pharmacy_info (hours, address, phone), refill-mcp__get_medication_info (what a medication is for). For medication questions: call refill-mcp__get_medication_info with name and trace_id. Read back only the purpose field — up to 2 sentences. Never give medical advice. Route to pharmacist with 'Let me connect you with a pharmacist for that.'",
         "instructions_mode": "append",
         "tools_mode": "append",
         "tools": []
@@ -493,6 +493,30 @@
         },
         "condition": {
           "type": "default"
+        }
+      },
+      {
+        "id": "e_after_hours_human",
+        "start_node_id": "n_after_hours",
+        "target": {
+          "type": "node",
+          "node_id": "n_transfer_prompt"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller asks for a human or pharmacist"
+        }
+      },
+      {
+        "id": "e_after_hours_closing",
+        "start_node_id": "n_after_hours",
+        "target": {
+          "type": "node",
+          "node_id": "n_closing"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller is done or says goodbye"
         }
       },
       {
