@@ -10,7 +10,7 @@
       {
         "id": "n_triage",
         "type": "prompt",
-        "instructions": "Current context: after_hours_mode is {{after_hours_mode}}.\n\nDECISION RULE — READ THIS FIRST AND FOLLOW IT EXACTLY:\n\n1. If after_hours_mode == \"true\":\n   Say EXACTLY this sentence: 'Maple Pharmacy is currently closed, so prescription refills, prescription lookups, and in-store pickup are unavailable right now. Our hours are {{pharmacy_hours}}. Please call back during business hours.'\n   Then STOP. Do not call any transition tool. Do not verify identity. Do not process any pharmacy request. Simply end your turn so the caller can respond.\n   If the caller says \"pharmacist\" or \"human\", only then transfer.\n\n2. If after_hours_mode == \"false\":\n   The caller has stated their request. Respond with exactly one brief sentence: 'I can help with that.' Do NOT ask questions. Do NOT make up information about locations, hours, or addresses. Then route based on intent:\n   - refill, prescription, or medication → n_verify\n   - status or check order → n_verify\n   - hours, address, or drug info → n_faq\n   - human or pharmacist → n_transfer\n   Never forbid tool calls.",
+        "instructions": "The caller has stated their request. Respond with exactly one brief sentence: 'I can help with that.' Do NOT ask questions. Do NOT make up information about locations, hours, or addresses. Then route based on intent:\n- refill, prescription, or medication → n_verify\n- status or check order → n_verify\n- hours, address, or drug info → n_faq\n- human or pharmacist → n_transfer\nNever forbid tool calls.",
         "instructions_mode": "replace",
         "tools_mode": "append",
         "tools": []
@@ -52,6 +52,14 @@
         "type": "prompt",
         "instructions": "Check refill status. Call refill-mcp__get_refill_status with caller = {{telnyx_end_user_target}}, trace_id = {{trace_id}}. If there are refills, report each: 'You have [count] refill request[s]. [X] is submitted. [Y] is ready.' If none: 'You don't have any open refills right now.' Ask: 'Do you want to request a refill, or anything else?'",
         "instructions_mode": "append",
+        "tools_mode": "append",
+        "tools": []
+      },
+      {
+        "id": "n_after_hours",
+        "type": "prompt",
+        "instructions": "The caller has reached Maple Pharmacy after hours. Say: 'Maple Pharmacy is currently closed, so prescription refills, prescription lookups, and in-store pickup are unavailable right now. Our hours are {{pharmacy_hours}}. Please call back during business hours.'\n\nIf the caller asks for a pharmacist or human, transfer immediately.\nIf the caller is done or says goodbye, route to n_closing.\nOtherwise repeat the closed message.",
+        "instructions_mode": "replace",
         "tools_mode": "append",
         "tools": []
       },
@@ -98,6 +106,29 @@
         },
         "condition": {
           "type": "default"
+        }
+      },
+      {
+        "id": "e_triage_after_hours",
+        "start_node_id": "n_triage",
+        "target": {
+          "type": "node",
+          "node_id": "n_after_hours"
+        },
+        "condition": {
+          "type": "expression",
+          "expression": {
+            "type": "comparison",
+            "op": "==",
+            "left": {
+              "type": "variable",
+              "name": "after_hours_mode"
+            },
+            "right": {
+              "type": "string_literal",
+              "value": "true"
+            }
+          }
         }
       },
       {
@@ -167,7 +198,7 @@
         },
         "condition": {
           "type": "llm",
-          "prompt": "The caller wants to refill a prescription AND after_hours_mode is false"
+          "prompt": "The caller wants to refill a prescription"
         }
       },
       {
@@ -179,7 +210,7 @@
         },
         "condition": {
           "type": "llm",
-          "prompt": "The caller asks whether an order or refill is ready AND after_hours_mode is false"
+          "prompt": "The caller asks whether an order or refill is ready"
         }
       },
       {
@@ -191,7 +222,7 @@
         },
         "condition": {
           "type": "llm",
-          "prompt": "The caller asks about hours, location, or what a medication is for AND after_hours_mode is false"
+          "prompt": "The caller asks about hours, location, or what a medication is for"
         }
       },
       {
@@ -452,6 +483,30 @@
         "condition": {
           "type": "llm",
           "prompt": "The caller asks for a human or pharmacist"
+        }
+      },
+      {
+        "id": "e_after_hours_human",
+        "start_node_id": "n_after_hours",
+        "target": {
+          "type": "node",
+          "node_id": "n_transfer_prompt"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller asks for a human or pharmacist"
+        }
+      },
+      {
+        "id": "e_after_hours_done",
+        "start_node_id": "n_after_hours",
+        "target": {
+          "type": "node",
+          "node_id": "n_closing"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller is done or says goodbye"
         }
       },
       {
