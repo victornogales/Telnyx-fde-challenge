@@ -272,6 +272,15 @@ SAFE_DEFAULTS: dict[str, str] = {
 
 
 class App:
+    async def start(self, env: dict[str, str] | None = None) -> None:
+        """Warm-up: establish TLS connection to KV API before first call."""
+        try:
+            kv = _get_kv()
+            # Dummy read to warm up HTTPS connection pool
+            await kv.get("flag/after_hours_mode", timeout=5.0)
+        except Exception:
+            pass
+
     async def handle(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
         method = scope.get("method", "GET")
         path = scope.get("path", "/")
@@ -328,20 +337,21 @@ class App:
         # After-hours notice will be appended after flags are fetched
         _after_hours_notice: str = ""
 
+        # Fetch flags and gateway state concurrently WITHOUT outer timeout
+        # Each inner task has its own timeout; partial success is acceptable
         try:
-            result = await asyncio.wait_for(
-                self._fetch_all(kv, caller, trace_id, call_control_id, skip_record_call=duplicate),
-                timeout=1.0,
+            flags, gateway_result = await self._fetch_all(
+                kv, caller, trace_id, call_control_id, skip_record_call=duplicate
             )
-            flags, gateway_result = result
-        except asyncio.TimeoutError:
+        except Exception as exc:
             _log(
                 "webhook",
                 trace_id=trace_id,
                 caller_key=caller,
-                outcome="fallback",
+                outcome="fetch_error",
                 patient_name=patient_name,
-                error="overall_timeout",
+                error_type=type(exc).__name__,
+                error=str(exc),
                 total_ms=timer.ms(),
             )
             await self._send_dynamic_vars(send, PARTIAL_DEFAULTS, trace_id)
