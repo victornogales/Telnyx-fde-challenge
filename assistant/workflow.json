@@ -5,7 +5,7 @@
       {
         "id": "n_disclosure",
         "type": "speak",
-        "message": "Thanks for calling Maple Pharmacy. This call may be recorded.{{greeting_suffix}} Say pharmacist at any time to speak with a person."
+        "message": "Thanks for calling Maple Pharmacy. This call may be recorded. Say pharmacist at any time to speak with a person.{{greeting_suffix}}"
       },
       {
         "id": "n_triage",
@@ -67,6 +67,11 @@
         "id": "n_locked",
         "type": "speak",
         "message": "For your security I can't continue verification on this call. I'll connect you with a pharmacist."
+      },
+      {
+        "id": "n_transfer_prompt",
+        "type": "speak",
+        "message": "I'll transfer you now. Please hold."
       },
       {
         "id": "n_transfer",
@@ -131,7 +136,7 @@
         "start_node_id": "n_triage",
         "target": {
           "type": "node",
-          "node_id": "n_transfer"
+          "node_id": "n_transfer_prompt"
         },
         "condition": {
           "type": "llm",
@@ -271,7 +276,7 @@
         "start_node_id": "n_verify",
         "target": {
           "type": "node",
-          "node_id": "n_transfer"
+          "node_id": "n_transfer_prompt"
         },
         "condition": {
           "type": "llm",
@@ -461,11 +466,22 @@
         "start_node_id": "n_faq",
         "target": {
           "type": "node",
-          "node_id": "n_transfer"
+          "node_id": "n_transfer_prompt"
         },
         "condition": {
           "type": "llm",
           "prompt": "The caller asks for a human or pharmacist"
+        }
+      },
+      {
+        "id": "e_transfer_prompt",
+        "start_node_id": "n_transfer_prompt",
+        "target": {
+          "type": "node",
+          "node_id": "n_transfer"
+        },
+        "condition": {
+          "type": "default"
         }
       },
       {
