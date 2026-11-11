@@ -546,6 +546,16 @@ What to look for:
    - `e_triage_human` now evaluates BEFORE `e_triage_locked` and `e_triage_after_hours`
    - "Speak to pharmacist" works even when locked or after-hours
 
+7. **Intermittent TTS Drop (Platform-level — observed 2026-11-11)**
+   - Symptom: After caller provides DOB, assistant is silent for 5–10 seconds, then platform idle message "Are you still there?" plays.
+   - Root cause: LLM-generated confirmation audio is generated but not played (Telnyx platform TTS pipeline drop). Idle timeout then fires.
+   - Impact: Caller may think assistant is stuck. Saying "I am here" recovers the flow — LLM sees its prior confirmation in history and repeats it.
+   - Not fixable in application code. Documented as platform limitation.
+
+8. Transfer Failure Messaging (Fixed 2026-11-11):
+   - `n_transfer_failed` now says: "I couldn't reach a pharmacist right now. Thanks for your call, goodbye."
+   - Previous message was only "Thanks for your call, goodbye." — callers didn't realize the transfer had actually failed.
+
 ---
 
 ## Test Data Reference
