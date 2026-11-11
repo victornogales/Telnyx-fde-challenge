@@ -23,6 +23,7 @@ export class CallerSession extends StatefulActor {
     locked: boolean;
     openRefills: number;
     lastIntent?: string;
+    failedAttempts: number;
   }> {
     const start = Date.now();
     const callCount = ((await this.ctx.storage.get<number>("callCount")) ?? 0) + 1;
@@ -30,6 +31,7 @@ export class CallerSession extends StatefulActor {
     const refills = (await this.ctx.storage.get<Refill[]>("refills")) ?? [];
     const openRefills = refills.filter((r) => r.status === "submitted").length;
     const lastIntent = await this.ctx.storage.get<string>("lastIntent");
+    const failedAttempts = (await this.ctx.storage.get<number>("failedAttempts")) ?? 0;
 
     await this.ctx.storage.put("callCount", callCount);
     await this.ctx.storage.put("lastCallAt", Date.now());
@@ -43,10 +45,11 @@ export class CallerSession extends StatefulActor {
       callCount,
       locked: Date.now() < lockedUntil,
       openRefills,
+      failedAttempts,
       latency_ms: Date.now() - start,
     });
 
-    return { callCount, locked: Date.now() < lockedUntil, openRefills, lastIntent };
+    return { callCount, locked: Date.now() < lockedUntil, openRefills, lastIntent, failedAttempts };
   }
 
   async recordVerificationAttempt(args: {

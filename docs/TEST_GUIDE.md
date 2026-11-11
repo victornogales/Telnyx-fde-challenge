@@ -322,9 +322,16 @@ Setup: Pre-Test Setup.
 | Step | You Say | Expected Response |
 |---|---|---|
 | 1 | Dial | Greeting |
-| 2 | "I want to refill" | "Please tell me your date of birth." |
-| 3 | "January 1 1990" (wrong) | "That does not match our records. Please try again." |
-| 4 | "March 15 1962" (correct) | "Thank you. Verified." |
+| 2 | "I want to refill" | "I can help. Please tell me your date of birth." |
+| 3 | "January 1 1990" (wrong) | "You said January 1, 1990. Is that correct?" |
+| 3b | "Yes" (confirming wrong DOB) | "That does not match my records. You have 2 more tries. What is your date of birth?" |
+| 4 | "March 15 1962" | "You said March 15, 1962. Is that correct?" |
+| 4b | "Yes" | "Thank you. Verified. I can help you refill." |
+
+What confirms success:
+- [ ] Assistant repeats DOB and asks for confirmation
+- [ ] On wrong DOB: says remaining attempts and asks again
+- [ ] On correct DOB: verifies and proceeds
 
 ---
 
@@ -416,17 +423,23 @@ What to look for:
    - Max 2 concurrent calls, 10 minutes per call
    - Transfer may fail due to single-line limitation
 
-2. Webhook Timeout:
+2. DOB Verification Flow:
+   - Assistant must repeat DOB back and ask "Is that correct?"
+   - On wrong DOB: assistant reports remaining attempts (e.g., "You have 2 more tries")
+   - On locked: transfers to pharmacist
+   - attempts_left dynamic variable tracks remaining tries per call
+
+3. Webhook Timeout:
    - KV + gateway must complete within 1.0 second
    - On timeout: fallback with greeting_suffix still populated
    - First call may timeout if actor cold starts
 
-3. KV Singleton Cache:
+4. KV Singleton Cache:
    - First request incurs full REST round-trip (~513ms)
    - Subsequent requests use in-memory cache
    - Containers recycled after idle period
 
-4. TTS Cold Start:
+5. TTS Cold Start:
    - First utterance may have ~0.5s generation delay
    - Platform-level behavior, not under our control
    - Mitigated by speak node before prompt node

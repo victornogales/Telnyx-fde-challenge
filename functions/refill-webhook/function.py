@@ -255,6 +255,7 @@ SAFE_DEFAULTS: dict[str, str] = {
     "call_count": "0",
     "last_intent": "",
     "account_locked": "false",
+    "attempts_left": "3",
     "refills_enabled": "true",
     "after_hours_mode": "false",
     "open_refill_count": "0",
@@ -353,6 +354,8 @@ class App:
         vars_out["is_known_caller"] = "true"
         vars_out["call_count"] = str(gateway_result.get("callCount", 0))
         vars_out["account_locked"] = "true" if gateway_result.get("locked") else "false"
+        failed = gateway_result.get("failedAttempts", 0)
+        vars_out["attempts_left"] = str(max(0, 3 - failed))
         vars_out["open_refill_count"] = str(gateway_result.get("openRefills", 0))
         if gateway_result.get("lastIntent"):
             vars_out["last_intent"] = str(gateway_result["lastIntent"])
