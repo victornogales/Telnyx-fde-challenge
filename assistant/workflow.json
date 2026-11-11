@@ -5,12 +5,12 @@
       {
         "id": "n_disclosure",
         "type": "speak",
-        "message": "Thanks for calling Maple Pharmacy. This call may be recorded.{{greeting_suffix}}"
+        "message": "Thanks for calling Maple Pharmacy. This call may be recorded.{{greeting_suffix}} Say pharmacist at any time to speak with a person."
       },
       {
         "id": "n_triage",
         "type": "prompt",
-        "instructions": "The caller has stated their request. Respond with exactly one brief sentence: 'I can help with that.' Do NOT ask questions. Do NOT make up information about locations, hours, or addresses. Then route based on intent:\n- refill, prescription, or medication → n_verify\n- status or check order → n_verify\n- hours, address, or drug info → n_faq\n- human or pharmacist → n_transfer\nNever forbid tool calls.",
+        "instructions": "The caller has stated their request. Respond with exactly one brief sentence: 'I can help with that.' Do NOT ask questions. Do NOT make up information about locations, hours, or addresses. Then route based on intent:\n- refill, prescription, or medication \u00e2\u2020\u2019 n_verify\n- status or check order \u00e2\u2020\u2019 n_verify\n- hours, address, or drug info \u00e2\u2020\u2019 n_faq\n- human or pharmacist \u00e2\u2020\u2019 n_transfer\nNever forbid tool calls.",
         "instructions_mode": "replace",
         "tools_mode": "append",
         "tools": []
@@ -104,6 +104,41 @@
         }
       },
       {
+        "id": "e_triage_timeout",
+        "start_node_id": "n_triage",
+        "target": {
+          "type": "node",
+          "node_id": "n_transfer"
+        },
+        "condition": {
+          "type": "expression",
+          "expression": {
+            "type": "comparison",
+            "op": ">=",
+            "left": {
+              "type": "variable",
+              "name": "telnyx_conversation_duration_secs"
+            },
+            "right": {
+              "type": "string_literal",
+              "value": "300"
+            }
+          }
+        }
+      },
+      {
+        "id": "e_triage_human",
+        "start_node_id": "n_triage",
+        "target": {
+          "type": "node",
+          "node_id": "n_transfer"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller asks for a pharmacist or a human, or is frustrated"
+        }
+      },
+      {
         "id": "e_triage_locked",
         "start_node_id": "n_triage",
         "target": {
@@ -150,29 +185,6 @@
         }
       },
       {
-        "id": "e_triage_timeout",
-        "start_node_id": "n_triage",
-        "target": {
-          "type": "node",
-          "node_id": "n_transfer"
-        },
-        "condition": {
-          "type": "expression",
-          "expression": {
-            "type": "comparison",
-            "op": ">=",
-            "left": {
-              "type": "variable",
-              "name": "telnyx_conversation_duration_secs"
-            },
-            "right": {
-              "type": "string_literal",
-              "value": "300"
-            }
-          }
-        }
-      },
-      {
         "id": "e_triage_refill",
         "start_node_id": "n_triage",
         "target": {
@@ -206,18 +218,6 @@
         "condition": {
           "type": "llm",
           "prompt": "The caller asks about hours, location, or what a medication is for"
-        }
-      },
-      {
-        "id": "e_triage_human",
-        "start_node_id": "n_triage",
-        "target": {
-          "type": "node",
-          "node_id": "n_transfer"
-        },
-        "condition": {
-          "type": "llm",
-          "prompt": "The caller asks for a pharmacist or a human, or is frustrated"
         }
       },
       {
