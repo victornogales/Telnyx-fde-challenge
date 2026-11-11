@@ -250,7 +250,7 @@ def _client() -> httpx.AsyncClient:
     return _HTTP_CLIENT
 
 
-_DEPLOY_TS = "2026-11-11T14:15Z"
+_DEPLOY_TS = "2026-11-11T19:30Z"
 
 _KV_NAMESPACE_ID = os.environ.get("KV_NAMESPACE_ID", "3208b4c8-7ac1-4f42-a73d-ab9bfd4fc8ee")
 
@@ -272,11 +272,19 @@ SAFE_DEFAULTS: dict[str, str] = {
 
 
 class App:
-    async def start(self, env: dict[str, str] | None = None) -> None:
-        """Warm-up: establish TLS connection to KV API before first call."""
+    def start(self, env: dict[str, str] | None = None) -> None:
+        """Warm-up: schedule background KV read to warm up HTTPS connection pool.
+        The framework calls start() synchronously, so we fire-and-forget a task."""
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(self._warmup())
+        except Exception:
+            pass
+
+    async def _warmup(self) -> None:
         try:
             kv = _get_kv()
-            # Dummy read to warm up HTTPS connection pool
             await kv.get("flag/after_hours_mode", timeout=5.0)
         except Exception:
             pass
@@ -439,10 +447,8 @@ class App:
         gw_timer = _Timer()
 
         async def _flags() -> dict[str, str]:
-            refills, after_hours = await asyncio.gather(
-                asyncio.wait_for(kv.get_flag("refills_enabled", "true"), timeout=1.2),
-                asyncio.wait_for(kv.get_flag("after_hours_mode", "false"), timeout=1.2),
-            )
+            refills = await asyncio.wait_for(kv.get_flag("refills_enabled", "true"), timeout=0.6)
+            after_hours = await asyncio.wait_for(kv.get_flag("after_hours_mode", "false"), timeout=0.6)
             return {
                 "refills_enabled": refills or "true",
                 "after_hours_mode": after_hours or "false",
@@ -465,9 +471,9 @@ class App:
                     caller,
                     {"traceId": trace_id, "callControlId": call_control_id},
                     trace_id,
-                    timeout=0.7,
+                    timeout=0.5,
                 ),
-                timeout=0.7,
+                timeout=0.5,
             )
             return {
                 **(result or {}),
