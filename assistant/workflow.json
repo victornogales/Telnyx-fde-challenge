@@ -4,13 +4,8 @@
     "nodes": [
       {
         "id": "n_disclosure",
-        "type": "speak",
-        "message": "Thanks for calling Maple Pharmacy{{greeting_suffix}}. This call may be recorded."
-      },
-      {
-        "id": "n_triage",
         "type": "prompt",
-        "instructions": "You are the Maple Pharmacy refill line. Greet the caller warmly using their first name if available ({{patient_first_name}}). Then immediately ask: 'How can I help you today? You can say refill, status, or ask a general question. Say pharmacist at any time to reach a person.'\n\nWait for the caller's response. If they are silent or unclear, re-prompt once: 'I'm still here. How can I help you today?'\n\nRoute based on intent:\n- refill, prescription, medication → n_verify\n- status, ready, check order → n_verify\n- hours, address, what a drug does → n_faq\n- human, pharmacist, frustrated → n_transfer\nNever forbid tool calls.",
+        "instructions": "Say: 'Thanks for calling Maple Pharmacy. This call may be recorded.' Then greet the caller warmly using their first name if available ({{patient_first_name}}). Then ask: 'How can I help you today? You can say refill, status, or ask a general question. Say pharmacist at any time to reach a person.'\n\nWait for the caller's response. If they are silent or unclear, re-prompt once: 'I'm still here. How can I help you today?'\n\nRoute based on intent:\n- refill, prescription, medication → n_verify\n- status, ready, check order → n_verify\n- hours, address, what a drug does → n_faq\n- human, pharmacist, frustrated → n_transfer\nNever forbid tool calls.",
         "instructions_mode": "append",
         "tools_mode": "append",
         "tools": []
@@ -92,20 +87,10 @@
       }
     ],
     "edges": [
+
       {
-        "id": "e_disclosure_triage",
+        "id": "e_disclosure_locked",
         "start_node_id": "n_disclosure",
-        "target": {
-          "type": "node",
-          "node_id": "n_triage"
-        },
-        "condition": {
-          "type": "default"
-        }
-      },
-      {
-        "id": "e_triage_locked",
-        "start_node_id": "n_triage",
         "target": {
           "type": "node",
           "node_id": "n_locked"
@@ -127,8 +112,8 @@
         }
       },
       {
-        "id": "e_triage_after_hours",
-        "start_node_id": "n_triage",
+        "id": "e_disclosure_after_hours",
+        "start_node_id": "n_disclosure",
         "target": {
           "type": "node",
           "node_id": "n_after_hours"
@@ -150,8 +135,8 @@
         }
       },
       {
-        "id": "e_triage_timeout",
-        "start_node_id": "n_triage",
+        "id": "e_disclosure_timeout",
+        "start_node_id": "n_disclosure",
         "target": {
           "type": "node",
           "node_id": "n_transfer"
@@ -173,8 +158,8 @@
         }
       },
       {
-        "id": "e_triage_refill",
-        "start_node_id": "n_triage",
+        "id": "e_disclosure_refill",
+        "start_node_id": "n_disclosure",
         "target": {
           "type": "node",
           "node_id": "n_verify"
@@ -185,8 +170,8 @@
         }
       },
       {
-        "id": "e_triage_status",
-        "start_node_id": "n_triage",
+        "id": "e_disclosure_status",
+        "start_node_id": "n_disclosure",
         "target": {
           "type": "node",
           "node_id": "n_verify"
@@ -197,8 +182,8 @@
         }
       },
       {
-        "id": "e_triage_faq",
-        "start_node_id": "n_triage",
+        "id": "e_disclosure_faq",
+        "start_node_id": "n_disclosure",
         "target": {
           "type": "node",
           "node_id": "n_faq"
@@ -209,8 +194,8 @@
         }
       },
       {
-        "id": "e_triage_human",
-        "start_node_id": "n_triage",
+        "id": "e_disclosure_human",
+        "start_node_id": "n_disclosure",
         "target": {
           "type": "node",
           "node_id": "n_transfer"
@@ -319,7 +304,7 @@
         "start_node_id": "n_refill",
         "target": {
           "type": "node",
-          "node_id": "n_triage"
+          "node_id": "n_disclosure"
         },
         "condition": {
           "type": "llm",
@@ -366,7 +351,7 @@
         "start_node_id": "n_confirm",
         "target": {
           "type": "node",
-          "node_id": "n_triage"
+          "node_id": "n_disclosure"
         },
         "condition": {
           "type": "llm",

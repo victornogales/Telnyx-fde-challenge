@@ -228,6 +228,14 @@ class _KV:
 # ---------------------------------------------------------------------------
 
 _HTTP_CLIENT: httpx.AsyncClient | None = None
+_KV_INSTANCE: _KV | None = None
+
+
+def _get_kv() -> _KV:
+    global _KV_INSTANCE
+    if _KV_INSTANCE is None:
+        _KV_INSTANCE = _KV(_client(), _KV_NAMESPACE_ID)
+    return _KV_INSTANCE
 
 
 def _client() -> httpx.AsyncClient:
@@ -294,7 +302,7 @@ class App:
             return
 
         caller = _caller_key(end_user)
-        kv = _KV(_client(), _KV_NAMESPACE_ID)
+        kv = _get_kv()
         duplicate = _is_duplicate_call(call_control_id)
 
         # Resolve patient name immediately (instant, no RPC)
