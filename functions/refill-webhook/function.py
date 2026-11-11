@@ -288,7 +288,7 @@ def _client() -> httpx.AsyncClient:
     return _HTTP_CLIENT
 
 
-_DEPLOY_TS = "2026-11-11T19:45Z"
+_DEPLOY_TS = "2026-11-11T20:00Z"
 
 _KV_NAMESPACE_ID = os.environ.get("KV_NAMESPACE_ID", "3208b4c8-7ac1-4f42-a73d-ab9bfd4fc8ee")
 
@@ -487,11 +487,11 @@ class App:
             refills, after_hours = await asyncio.gather(
                 asyncio.wait_for(
                     kv.get_flag("refills_enabled", "true", flag_sources=flag_sources),
-                    timeout=0.9,
+                    timeout=1.5,
                 ),
                 asyncio.wait_for(
                     kv.get_flag("after_hours_mode", "false", flag_sources=flag_sources),
-                    timeout=0.9,
+                    timeout=1.5,
                 ),
                 return_exceptions=True,
             )
