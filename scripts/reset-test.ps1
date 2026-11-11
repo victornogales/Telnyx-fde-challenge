@@ -6,12 +6,34 @@
 
 $ErrorActionPreference = "Stop"
 
-if (!$env:INTERNAL_TOKEN) {
-    Write-Host "WARNING: INTERNAL_TOKEN not set. Actor reset may fail." -ForegroundColor Yellow
-    $token = ""
-} else {
-    $token = $env:INTERNAL_TOKEN
+# -------------------------------------------------------------
+# 0. Validate required environment variables
+# -------------------------------------------------------------
+if (!$env:TELNYX_API_KEY) {
+    Write-Host "ERROR: TELNYX_API_KEY not set." -ForegroundColor Red
+    exit 1
 }
+
+if (!$env:INTERNAL_TOKEN) {
+    Write-Host "WARNING: INTERNAL_TOKEN not set. Trying to look it up..." -ForegroundColor Yellow
+    $env:INTERNAL_TOKEN = (telnyx-edge secrets list 2>$null | Select-String "INTERNAL_TOKEN" | ForEach-Object { ($_ -split "\s+")[1] })
+    if (!$env:INTERNAL_TOKEN) {
+        Write-Host "ERROR: INTERNAL_TOKEN not found. Run: telnyx-edge secrets add INTERNAL_TOKEN <value>" -ForegroundColor Red
+        exit 1
+    }
+}
+
+if (!$env:KV_NAMESPACE_ID) {
+    Write-Host "WARNING: KV_NAMESPACE_ID not set. Trying to look it up..." -ForegroundColor Yellow
+    $env:KV_NAMESPACE_ID = (telnyx-edge kv list 2>$null | Select-Object -First 1 | ForEach-Object { ($_ -split "\s+")[0] })
+    if (!$env:KV_NAMESPACE_ID) {
+        Write-Host "ERROR: KV_NAMESPACE_ID not found." -ForegroundColor Red
+        exit 1
+    }
+}
+
+# -------------------------------------------------------------
+# 1. Compute caller key for Maria (+15550000001)
 # -------------------------------------------------------------
 $e164 = "+15550000001"
 $bytes = [System.Text.Encoding]::UTF8.GetBytes($e164)
@@ -22,26 +44,29 @@ $callerKey = $hex.Substring(0, 16)
 Write-Host "Caller key: $callerKey" -ForegroundColor Cyan
 
 # -------------------------------------------------------------
-# 2. Reset actor state (clear failed attempts, refills, lock)
+# 2. Reset actor state via RPC (direct function URL)
+#    The Telnyx API endpoint does NOT expose actor RPC.
+#    We must POST to the function's own invoke URL /rpc.
 # -------------------------------------------------------------
 Write-Host -NoNewline "Resetting actor state ... "
 
 try {
-    Invoke-RestMethod -Uri "https://api.telnyx.com/v2/edge/functions/caller-session/rpc" `
+    # The invoke URL is fixed for this deployment
+    $rpcUrl = "https://caller-session-51645523-7.telnyxcompute.com/rpc"
+
+    Invoke-RestMethod -Uri $rpcUrl `
       -Method POST `
       -Headers @{
-        "Authorization"      = "Bearer $env:TELNYX_API_KEY"
         "Content-Type"       = "application/json"
-        "X-Internal-Token"   = $token
+        "X-Internal-Token"   = $env:INTERNAL_TOKEN
         "X-Trace-Id"         = "reset_test_$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())"
       } `
       -Body (@{
-        method      = "recordVerificationAttempt"
+        method      = "resetState"
         caller_key  = $callerKey
         args        = @{
-          success      = $true
-          traceId      = "reset"
-          maxAttempts  = 3
+          traceId = "reset"
+          full    = $true
         }
       } | ConvertTo-Json) | Out-Null
 
@@ -51,7 +76,7 @@ try {
 }
 
 # -------------------------------------------------------------
-# 3. Reset feature flags to defaults
+# 3. Reset feature flags to defaults via Telnyx KV API
 # -------------------------------------------------------------
 Write-Host -NoNewline "Resetting flags (refills_enabled=true, after_hours=false) ... "
 
@@ -76,7 +101,6 @@ try {
 
     Write-Host "OK" -ForegroundColor Green
 } catch [System.Net.WebException] {
-    # 404 means the key doesn't exist yet - that's fine, we just need to create it
     if ($_.Exception.Response.StatusCode -eq 404) {
         Write-Host "OK (keys not yet created, will be set on first use)" -ForegroundColor Green
     } else {
