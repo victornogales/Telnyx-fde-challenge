@@ -185,7 +185,7 @@ After-hours mode. Flagled by `after_hours_mode == "true"`.
 ---
 
 ### n_transfer_failed (Speak node — verbatim)
-"I couldn't reach a pharmacist right now. Please call back during opening hours: {{pharmacy_hours}}."
+"Thanks for your call, goodbye."
 
 ---
 

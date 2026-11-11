@@ -82,7 +82,7 @@
       {
         "id": "n_transfer_failed",
         "type": "speak",
-        "message": "I couldn't reach a pharmacist right now. Please call back during opening hours: {{pharmacy_hours}}."
+        "message": "Thanks for your call, goodbye."
       },
       {
         "id": "n_closing",
