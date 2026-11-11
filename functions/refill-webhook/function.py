@@ -174,6 +174,9 @@ class _KV:
                 return None
             resp.raise_for_status()
             data = resp.json()
+            # API returns root-level {"value": "..."} — try that first, fall back to nested
+            if "value" in data:
+                return str(data["value"])
             return data.get("data", {}).get("value")
 
         try:
@@ -218,7 +221,7 @@ class _KV:
                 return value
         value = await self.get(f"flag/{name}")
         if value is None:
-            value = default
+            return default
         self._flag_cache[name] = (value, now)
         return value
 

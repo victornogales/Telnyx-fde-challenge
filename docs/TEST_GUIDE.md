@@ -554,7 +554,13 @@ What to look for:
    - Impact: Caller may think assistant is stuck. Saying "I am here" recovers the flow — LLM sees its prior confirmation in history and repeats it.
    - Not fixable in application code. Documented as platform limitation.
 
-8. Transfer Failure Messaging (Dynamic 2026-11-11):
+8. **KV API Response Format Bug (Fixed 2026-11-11)**
+   - Symptom: `after_hours_mode` and `refills_enabled` flags appeared to have no effect.
+   - Root cause: KV REST GET returns `{"value": "..."}` directly — no `data` wrapper. Webhook code expected `data.value` → always got `None` → always fell back to defaults.
+   - Fix: Updated `_KV.get()` to try root-level `value` first, fall back to `data.value`.
+   - Also fixed: `get_flag()` no longer caches fallback default values (prevents stale cached defaults).
+
+9. Transfer Failure Messaging (Dynamic 2026-11-11):
    - `transfer_fail_message` is pre-computed by webhook based on `after_hours_mode`
    - Normal hours: "I couldn't reach a pharmacist right now. Please call back later. Thanks for your call, goodbye."
    - After-hours: "I couldn't reach a pharmacist right now, as we're currently closed. Please call back during opening hours: {{pharmacy_hours}}. Thanks for your call, goodbye."

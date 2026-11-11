@@ -27,7 +27,8 @@ $headers = @{
 # Read current value
 try {
     $resp = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers -TimeoutSec 10
-    $current = $resp.data.value
+    # API returns root-level { "value": "..." } — no data wrapper
+    $current = $resp.value
     Write-Host "Current after_hours_mode flag value: $current"
 } catch {
     Write-Host "Could not read current value (flag may not exist yet). Assuming false." -ForegroundColor Yellow
