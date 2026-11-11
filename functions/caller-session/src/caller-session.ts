@@ -35,8 +35,10 @@ export class CallerSession extends StatefulActor {
 
     await this.ctx.storage.put("callCount", callCount);
     await this.ctx.storage.put("lastCallAt", Date.now());
-    // Security: reset verification on every new call
+    // Security: reset verification and attempts on every new call
     await this.ctx.storage.put("verifiedUntil", 0);
+    await this.ctx.storage.put("failedAttempts", 0);
+    await this.ctx.storage.put("lockedUntil", 0);
 
     logLine({
       actor: "CallerSession",

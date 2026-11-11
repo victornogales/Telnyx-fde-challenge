@@ -6,8 +6,12 @@
 
 $ErrorActionPreference = "Stop"
 
-# -------------------------------------------------------------
-# 1. Compute caller key for Maria (+15550000001)
+if (!$env:INTERNAL_TOKEN) {
+    Write-Host "WARNING: INTERNAL_TOKEN not set. Actor reset may fail." -ForegroundColor Yellow
+    $token = ""
+} else {
+    $token = $env:INTERNAL_TOKEN
+}
 # -------------------------------------------------------------
 $e164 = "+15550000001"
 $bytes = [System.Text.Encoding]::UTF8.GetBytes($e164)
@@ -28,7 +32,7 @@ try {
       -Headers @{
         "Authorization"      = "Bearer $env:TELNYX_API_KEY"
         "Content-Type"       = "application/json"
-        "X-Internal-Token"   = $env:INTERNAL_TOKEN
+        "X-Internal-Token"   = $token
         "X-Trace-Id"         = "reset_test_$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())"
       } `
       -Body (@{
