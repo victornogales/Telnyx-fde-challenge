@@ -3,6 +3,8 @@ dist/
 .env
 .env.*
 *.log
+# runtime test logs contain caller PII — never commit
+*_log.jsonl
 .DS_Store
 Thumbs.db
 # local Telnyx CLI state / credentials never belong in git

@@ -19,6 +19,10 @@ Built with **Telnyx Inference via OpenCode** — see `opencode.json`.
 
 Call `+442045202115` and say "I want to refill my prescription."
 
+> Patient lookup matches on the caller's E.164. The sample table uses the synthetic
+> number `+15550000001`; replace it in `functions/_shared/patients.py` with your own
+> verified test number locally (run `scripts/sync-shared.sh`, never commit the real number).
+
 ---
 
 ## Use case

@@ -294,7 +294,7 @@ New order: timeout → human → locked → after_hours → refill...
 
 ### Prerequisites
 
-- Phone +15550000001 is verified in Telnyx portal
+- Your test phone is verified in the Telnyx portal — replace the synthetic `+15550000001` in the patient table with your own verified number locally (never commit it)
 - You can dial +442045202115
 - **Environment variables set** (see below)
 
