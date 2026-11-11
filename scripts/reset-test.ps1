@@ -9,27 +9,31 @@ $ErrorActionPreference = "Stop"
 # -------------------------------------------------------------
 # 0. Validate required environment variables
 # -------------------------------------------------------------
+$missing = @()
+
 if (!$env:TELNYX_API_KEY) {
-    Write-Host "ERROR: TELNYX_API_KEY not set." -ForegroundColor Red
-    exit 1
+    $missing += "TELNYX_API_KEY"
 }
 
 if (!$env:INTERNAL_TOKEN) {
-    Write-Host "WARNING: INTERNAL_TOKEN not set. Trying to look it up..." -ForegroundColor Yellow
-    $env:INTERNAL_TOKEN = (telnyx-edge secrets list 2>$null | Select-String "INTERNAL_TOKEN" | ForEach-Object { ($_ -split "\s+")[1] })
-    if (!$env:INTERNAL_TOKEN) {
-        Write-Host "ERROR: INTERNAL_TOKEN not found. Run: telnyx-edge secrets add INTERNAL_TOKEN <value>" -ForegroundColor Red
-        exit 1
-    }
+    $missing += "INTERNAL_TOKEN"
 }
 
 if (!$env:KV_NAMESPACE_ID) {
-    Write-Host "WARNING: KV_NAMESPACE_ID not set. Trying to look it up..." -ForegroundColor Yellow
-    $env:KV_NAMESPACE_ID = (telnyx-edge kv list 2>$null | Select-Object -First 1 | ForEach-Object { ($_ -split "\s+")[0] })
-    if (!$env:KV_NAMESPACE_ID) {
-        Write-Host "ERROR: KV_NAMESPACE_ID not found." -ForegroundColor Red
-        exit 1
-    }
+    $missing += "KV_NAMESPACE_ID"
+}
+
+if ($missing.Count -gt 0) {
+    Write-Host "ERROR: Missing environment variables: $($missing -join ', ')" -ForegroundColor Red
+    Write-Host "" 
+    Write-Host "Set them in PowerShell before running this script:" -ForegroundColor Yellow
+    Write-Host "  `$env:TELNYX_API_KEY    = 'YOUR_API_KEY'" -ForegroundColor Cyan
+    Write-Host "  `$env:INTERNAL_TOKEN    = 'YOUR_INTERNAL_TOKEN'" -ForegroundColor Cyan
+    Write-Host "  `$env:KV_NAMESPACE_ID   = 'YOUR_KV_NAMESPACE'" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "To get KV_NAMESPACE_ID, visit: https://portal.telnyx.com/app/storage" -ForegroundColor Yellow
+    Write-Host "To get INTERNAL_TOKEN, check your func.toml or run: telnyx-edge secrets list" -ForegroundColor Yellow
+    exit 1
 }
 
 # -------------------------------------------------------------
