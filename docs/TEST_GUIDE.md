@@ -281,20 +281,23 @@ What confirms success:
 
 ---
 
-### Scenario 2: Verification Persists (Callback)
+### Scenario 2: Call Back - Must Verify Again
 
-Setup: Run Scenario 1 first. Do NOT reset. Call back within 30 minutes.
+**Setup:** Run Scenario 1. Immediately call back.
 
 | Step | You Say | Expected Response |
 |---|---|---|
 | 1 | Dial again | "Thanks for calling... Hi Maria..." |
-| 2 | "I want to refill" | "Welcome back Maria. You're already verified." |
-| 3 | "Refill Metformin" | Confirms refill |
+| 2 | "I want to refill" | "I can help. Please tell me your date of birth." (**Always asked**) |
+| 3 | Provide DOB, confirm | "Thank you. You're all set. I can help you refill." |
+| 4 | "Refill Metformin" | Confirms refill |
 
-What confirms success:
-- [ ] NOT asked for DOB again
-- [ ] Recognized as already verified
+**What confirms success:**
+- [ ] Asked for DOB again (even on callback)
+- [ ] Verification succeeded
 - [ ] Refill submitted
+
+**Key insight:** Verification does NOT persist across calls. Each call requires fresh verification for security.
 
 ---
 
@@ -450,7 +453,7 @@ DOB Formats Accepted:
 ## Exit Criteria
 
 - [x] Scenario 1: Happy path refill
-- [ ] Scenario 2: Verification persists
+- [ ] Scenario 2: Call back - must verify again (security policy)
 - [ ] Scenario 3: Transfer
 - [ ] Scenario 4: Wrong DOB retry
 - [ ] Scenario 5: Lockout after 3 failures
@@ -467,7 +470,7 @@ DOB Formats Accepted:
 | Scenario | Date Tested | Status |
 |---|---|---|
 | 1 Happy Path | 2026-11-11 | VERIFIED |
-| 2 Callback | -- | PENDING |
+| 2 Callback (verify again) | -- | PENDING |
 | 3 Transfer | -- | PENDING |
 | 4 Wrong DOB | -- | PENDING |
 | 5 Lockout | -- | PENDING |
