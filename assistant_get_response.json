@@ -1,0 +1,879 @@
+{
+  "id": "assistant-9befc905-0e48-42f9-b65f-ae91b269bb65",
+  "name": "RefillLine",
+  "description": "",
+  "model": "zai-org/GLM-5.3-Flash",
+  "instructions": "You are the Maple Pharmacy voice assistant.\n\nIMPORTANT: Do NOT greet the caller with 'Hello' or 'Welcome' \u2014 the workflow handles the greeting. After the caller speaks, be concise and friendly. Limit to 1-2 sentence responses and always end with a question.",
+  "tools": [
+    {
+      "tool_id": "tool-c197145f-507c-4aae-81af-e27119417232",
+      "type": "hangup",
+      "timeout_ms": 5000,
+      "shared": true,
+      "name": "Default hangup",
+      "hangup": {
+        "description": "To be used whenever the conversation has ended and it would be appropriate to hangup the call."
+      }
+    }
+  ],
+  "mcp_servers": [
+    {
+      "id": "741d636a-22d6-4723-99d9-34815b857ed5",
+      "allowed_tools": [
+        "verify_identity",
+        "list_prescriptions",
+        "request_refill",
+        "get_refill_status",
+        "get_medication_info",
+        "get_pharmacy_info"
+      ]
+    }
+  ],
+  "mcp_messages": [],
+  "a2a_agents": [],
+  "created_at": "2026-11-05T10:02:59.169915Z",
+  "version_id": "20261111T180925977149",
+  "version_created_at": "2026-11-11T18:09:25.977149Z",
+  "greeting": "",
+  "llm_api_key_ref": "",
+  "fallback_config": {
+    "model": null,
+    "llm_api_key_ref": "",
+    "external_llm": null
+  },
+  "external_llm": null,
+  "voice_settings": {
+    "voice": "Telnyx.Ultra.f786b574-daa5-4673-aa0c-cbe3e8534c02",
+    "community": false,
+    "api_key_ref": null,
+    "voice_speed": 1.0,
+    "background_audio": {
+      "type": "predefined_media",
+      "value": "silence",
+      "volume": 0.5
+    },
+    "tool_call_audio": null,
+    "temperature": null,
+    "repetition_penalty": null,
+    "top_p": null,
+    "similarity_boost": 0.5,
+    "style": 0.0,
+    "use_speaker_boost": true,
+    "language_boost": "English",
+    "language": null,
+    "language_voices": null,
+    "expressive_mode": true,
+    "pronunciation_dict_id": null,
+    "region": null
+  },
+  "avatar_settings": null,
+  "transcription": {
+    "model": "deepgram/flux",
+    "fallback_models": null,
+    "language": "en",
+    "api_key_ref": null,
+    "region": null,
+    "settings": {
+      "smart_format": null,
+      "numerals": null,
+      "eot_threshold": 0.8,
+      "eot_timeout_ms": 5000,
+      "eager_eot_threshold": 0.8,
+      "keyterm": null,
+      "eager_turn_probability": null,
+      "final_turn_probability": null,
+      "remove_disfluencies": null,
+      "end_of_turn_confidence_threshold": null,
+      "prompt": null,
+      "min_turn_silence": null,
+      "max_turn_silence": null,
+      "interim_results": null,
+      "enable_endpoint_detection": null,
+      "max_endpoint_delay_ms": null,
+      "context": null,
+      "language_hints": null
+    },
+    "challenger": null
+  },
+  "telephony_settings": {
+    "default_texml_app_id": "3086398561517045694",
+    "supports_unauthenticated_web_calls": false,
+    "noise_suppression": "disabled",
+    "noise_suppression_config": null,
+    "time_limit_secs": 300,
+    "user_idle_timeout_secs": 45,
+    "user_idle_reply_secs": 10,
+    "fallback_destination": null,
+    "voicemail_detection": null,
+    "recording_settings": {
+      "enabled": true,
+      "channels": "dual",
+      "format": "mp3",
+      "stop_on_conversation_end": false
+    },
+    "send_conversation_message_events": false,
+    "send_message_history_updates": null,
+    "disable_dtmf": false,
+    "conversation_ended_full_history": false,
+    "greeting_delay_ms": null
+  },
+  "messaging_settings": null,
+  "enabled_features": [
+    "telephony"
+  ],
+  "insight_settings": {
+    "insight_group_id": "56367bb3-8cbd-4b3a-94ae-e3eff7361a42",
+    "use_insights_for_memory": null,
+    "model": "zai-org/GLM-5.3-Flash"
+  },
+  "privacy_settings": {
+    "data_retention": true,
+    "pii_redaction": "disabled",
+    "in_transit_data_locality": false
+  },
+  "post_conversation_settings": {
+    "enabled": false
+  },
+  "dynamic_variables_webhook_url": "https://refill-webhook-8d5c4fc7-b.telnyxcompute.com",
+  "dynamic_variables_webhook_timeout_ms": 1500,
+  "dynamic_variables": {
+    "greeting_suffix": "",
+    "patient_first_name": "",
+    "attempts_left": "3",
+    "pharmacy_hours": "8am to 8pm, Monday to Saturday",
+    "account_locked": "false",
+    "after_hours_mode": "false",
+    "refills_enabled": "true",
+    "open_refill_count": "0"
+  },
+  "import_metadata": null,
+  "widget_settings": {
+    "theme": "dark",
+    "audio_visualizer_config": {
+      "color": "verdant",
+      "preset": "roundBars"
+    },
+    "start_call_text": "",
+    "default_state": "collapsed",
+    "position": "fixed",
+    "view_history_url": null,
+    "report_issue_url": null,
+    "give_feedback_url": null,
+    "agent_thinking_text": "",
+    "speak_to_interrupt_text": "",
+    "logo_icon_url": null
+  },
+  "interruption_settings": {
+    "enable": true,
+    "disable_greeting_interruption": false,
+    "start_speaking_plan": {
+      "wait_seconds": 0.1,
+      "transcription_endpointing_plan": {
+        "on_punctuation_seconds": 0.1,
+        "on_no_punctuation_seconds": 0.1,
+        "on_number_seconds": 0.1
+      },
+      "custom_endpointing_rules": null
+    },
+    "interrupt_prediction_threshold": 0.55
+  },
+  "integrations": null,
+  "observability_settings": {
+    "status": "disabled",
+    "secret_key_ref": null,
+    "public_key_ref": null,
+    "host": null,
+    "prompt_name": null,
+    "prompt_version": null,
+    "prompt_label": null,
+    "prompt_sync": "disabled"
+  },
+  "supervisor_settings": null,
+  "delegation_settings": null,
+  "websocket_settings": null,
+  "version_name": "Updated MCP server config",
+  "related_mission_ids": [],
+  "conversation_flow": {
+    "start_node_id": "n_disclosure",
+    "nodes": [
+      {
+        "type": "speak",
+        "id": "n_disclosure",
+        "name": null,
+        "message": "Thanks for calling Maple Pharmacy. This call may be recorded. Say pharmacist at any time to speak with a person.{{greeting_suffix}}",
+        "position": null
+      },
+      {
+        "type": "prompt",
+        "id": "n_triage",
+        "name": null,
+        "instructions": "The caller has stated their request. Respond with exactly one brief sentence: 'I can help with that.' Do NOT ask questions. Do NOT make up information about locations, hours, or addresses. Then route based on intent:\n- refill, prescription, or medication \u00e2\u2020\u2019 n_verify\n- status or check order \u00e2\u2020\u2019 n_verify\n- hours, address, or drug info \u00e2\u2020\u2019 n_faq\n- human or pharmacist \u00e2\u2020\u2019 n_transfer\nNever forbid tool calls.",
+        "instructions_mode": "replace",
+        "shared_tool_ids": null,
+        "tools": [],
+        "tools_mode": "append",
+        "model": null,
+        "llm_api_key_ref": null,
+        "external_llm": null,
+        "voice_settings": null,
+        "transcription": null,
+        "position": null
+      },
+      {
+        "type": "prompt",
+        "id": "n_verify",
+        "name": null,
+        "instructions": "Verify the caller's identity by date of birth.\n\nSTEP 1 - Ask for DOB:\nAsk the caller for their date of birth. Be warm but direct.\n\nSTEP 2 - Confirm DOB before verifying:\nWhen the caller provides a date, repeat it back and ask for confirmation: 'You said [date]. Is that correct?'\n- If the caller says NO or provides a different date: ask again 'What is your date of birth?' and repeat Step 2. Keep asking until they confirm.\n- If the caller says YES or confirms: proceed to Step 3.\n\nSTEP 3 - Verify:\nCall refill-mcp__verify_identity with: caller = {{telnyx_end_user_target}}, dob = YYYY-MM-DD.\n\nSTEP 4 - Report outcome:\nIf verified: check the conversation history. If the caller already stated they want to refill, say 'Thank you, you're all set. I can help you refill' and route naturally. If the intent is unclear, say 'Thank you, you're all set. What would you like to do today?'\nIf not verified: you MUST do ALL of these in order:\n  1. Say 'That doesn't match my records. You have {{attempts_left}} more tries.'\n  2. IMMEDIATELY ask again: 'What is your date of birth?'\n  3. Go back to Step 2 and wait for the caller's response.\nIf locked: say 'For your security, I can't continue on this call. I'll connect you with a pharmacist.'",
+        "instructions_mode": "replace",
+        "shared_tool_ids": null,
+        "tools": [],
+        "tools_mode": "append",
+        "model": null,
+        "llm_api_key_ref": null,
+        "external_llm": null,
+        "voice_settings": null,
+        "transcription": null,
+        "position": null
+      },
+      {
+        "type": "prompt",
+        "id": "n_refill",
+        "name": null,
+        "instructions": "Read refill-eligible prescriptions and help the caller choose. Call refill-mcp__list_prescriptions with caller = {{telnyx_end_user_target}}, trace_id = {{trace_id}}. Parse the result. Read them back one by one with natural pauses. Ask: 'Which one would you like to refill? You can say the name or the number.' Wait for the caller to choose. If they want multiple, handle one at a time. When the caller picks, route to n_confirm. If the caller says none or never mind, route back to n_triage.",
+        "instructions_mode": "append",
+        "shared_tool_ids": null,
+        "tools": [],
+        "tools_mode": "append",
+        "model": null,
+        "llm_api_key_ref": null,
+        "external_llm": null,
+        "voice_settings": null,
+        "transcription": null,
+        "position": null
+      },
+      {
+        "type": "prompt",
+        "id": "n_confirm",
+        "name": null,
+        "instructions": "Read back the choice and get explicit confirmation before refilling. Say: 'You want to refill [medication name] [strength]. Is that correct?' Wait for a clear yes or positive confirmation.\n\nCall refill-mcp__request_refill with: caller = {{telnyx_end_user_target}}, rx_id = chosen prescription ID, trace_id = {{trace_id}}.\n\nIf successful: say 'Your refill for [name] is submitted. It will be ready in about 10 minutes.' Then ALWAYS ask: 'Do you need anything else?'\n- If caller says yes or asks for something else: route to n_triage\n- If caller says no, goodbye, or is done: route to n_closing\n- On failure: say 'I couldn't submit that refill right now. Let me connect you with a pharmacist.'\n- On no or negative confirmation: say 'No problem. Would you like to choose a different prescription?' and route back to n_refill.",
+        "instructions_mode": "append",
+        "shared_tool_ids": null,
+        "tools": [],
+        "tools_mode": "append",
+        "model": null,
+        "llm_api_key_ref": null,
+        "external_llm": null,
+        "voice_settings": null,
+        "transcription": null,
+        "position": null
+      },
+      {
+        "type": "prompt",
+        "id": "n_status",
+        "name": null,
+        "instructions": "Check refill status. Call refill-mcp__get_refill_status with caller = {{telnyx_end_user_target}}, trace_id = {{trace_id}}. If there are refills, report each: 'You have [count] refill request[s]. [X] is submitted. [Y] is ready.' If none: 'You don't have any open refills right now.' Ask: 'Do you want to request a refill, or anything else?'",
+        "instructions_mode": "append",
+        "shared_tool_ids": null,
+        "tools": [],
+        "tools_mode": "append",
+        "model": null,
+        "llm_api_key_ref": null,
+        "external_llm": null,
+        "voice_settings": null,
+        "transcription": null,
+        "position": null
+      },
+      {
+        "type": "prompt",
+        "id": "n_faq",
+        "name": null,
+        "instructions": "Answer general questions. Available tools: refill-mcp__get_pharmacy_info (hours, address, phone), refill-mcp__get_medication_info (what a medication is for). For medication questions: call refill-mcp__get_medication_info with name and trace_id. Read back only the purpose field \u00e2\u20ac\u201d up to 2 sentences. Never give medical advice. Route to pharmacist with 'Let me connect you with a pharmacist for that.'",
+        "instructions_mode": "append",
+        "shared_tool_ids": null,
+        "tools": [],
+        "tools_mode": "append",
+        "model": null,
+        "llm_api_key_ref": null,
+        "external_llm": null,
+        "voice_settings": null,
+        "transcription": null,
+        "position": null
+      },
+      {
+        "type": "prompt",
+        "id": "n_after_hours",
+        "name": null,
+        "instructions": "After-hours mode. Say: 'Maple Pharmacy is currently closed. Our hours are {{pharmacy_hours}}.' Offer: 'I can take a callback note for urgent matters, or connect you with our 24-hour pharmacist line.' Use refill-mcp__get_pharmacy_info if asked again. Route to transfer on request for a human.",
+        "instructions_mode": "append",
+        "shared_tool_ids": null,
+        "tools": [],
+        "tools_mode": "append",
+        "model": null,
+        "llm_api_key_ref": null,
+        "external_llm": null,
+        "voice_settings": null,
+        "transcription": null,
+        "position": null
+      },
+      {
+        "type": "speak",
+        "id": "n_locked",
+        "name": null,
+        "message": "For your security I can't continue verification on this call. I'll connect you with a pharmacist.",
+        "position": null
+      },
+      {
+        "type": "speak",
+        "id": "n_transfer_prompt",
+        "name": null,
+        "message": "I'll transfer you now. Please hold.",
+        "position": null
+      },
+      {
+        "type": "tool",
+        "id": "n_transfer",
+        "name": null,
+        "shared_tool_id": "tool-b0d3da74-498f-4b68-b65d-13586ec2e1d6",
+        "message": null,
+        "tool": {
+          "tool_id": "tool-b0d3da74-498f-4b68-b65d-13586ec2e1d6",
+          "type": "transfer",
+          "function": null,
+          "retrieval": null,
+          "handoff": null,
+          "invite": null,
+          "client_side_tool": null,
+          "whatsapp_template": null,
+          "pay": null,
+          "vision": null,
+          "timeout_ms": 15000,
+          "shared": true,
+          "name": "Pharmacist Transfer",
+          "description": "",
+          "transfer": {
+            "from": "{{telnyx_agent_target}}",
+            "warm_transfer_instructions": "\"Transferring to a pharmacist now.\"",
+            "targets": [
+              {
+                "name": "Pharmacist",
+                "to": "+15550000001"
+              }
+            ],
+            "custom_headers": [],
+            "voicemail_detection": {
+              "detection_mode": "disabled",
+              "on_voicemail_detected": {
+                "action": "stop_transfer",
+                "voicemail_message": {
+                  "type": "warm_transfer_instructions",
+                  "message": ""
+                }
+              }
+            },
+            "warm_message_delay_ms": 3000
+          }
+        },
+        "position": null
+      },
+      {
+        "type": "speak",
+        "id": "n_transfer_failed",
+        "name": null,
+        "message": "{{transfer_fail_message}}",
+        "position": null
+      },
+      {
+        "type": "speak",
+        "id": "n_closing",
+        "name": null,
+        "message": "Thanks for calling Maple Pharmacy. Take care.",
+        "position": null
+      },
+      {
+        "type": "tool",
+        "id": "n_hangup",
+        "name": null,
+        "shared_tool_id": "tool-c197145f-507c-4aae-81af-e27119417232",
+        "message": null,
+        "tool": {
+          "tool_id": "tool-c197145f-507c-4aae-81af-e27119417232",
+          "type": "hangup",
+          "function": null,
+          "retrieval": null,
+          "handoff": null,
+          "invite": null,
+          "client_side_tool": null,
+          "whatsapp_template": null,
+          "pay": null,
+          "vision": null,
+          "timeout_ms": 5000,
+          "shared": true,
+          "name": "Default hangup",
+          "description": "",
+          "hangup": {
+            "description": "To be used whenever the conversation has ended and it would be appropriate to hangup the call."
+          }
+        },
+        "position": null
+      }
+    ],
+    "edges": [
+      {
+        "id": "e_disclosure_triage",
+        "start_node_id": "n_disclosure",
+        "target": {
+          "type": "node",
+          "node_id": "n_triage"
+        },
+        "condition": {
+          "type": "default"
+        }
+      },
+      {
+        "id": "e_triage_timeout",
+        "start_node_id": "n_triage",
+        "target": {
+          "type": "node",
+          "node_id": "n_transfer"
+        },
+        "condition": {
+          "type": "expression",
+          "expression": {
+            "type": "comparison",
+            "op": ">=",
+            "left": {
+              "type": "variable",
+              "name": "telnyx_conversation_duration_secs"
+            },
+            "right": {
+              "type": "string_literal",
+              "value": "300"
+            }
+          }
+        }
+      },
+      {
+        "id": "e_triage_human",
+        "start_node_id": "n_triage",
+        "target": {
+          "type": "node",
+          "node_id": "n_transfer_prompt"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller asks for a pharmacist or a human, or is frustrated"
+        }
+      },
+      {
+        "id": "e_triage_locked",
+        "start_node_id": "n_triage",
+        "target": {
+          "type": "node",
+          "node_id": "n_locked"
+        },
+        "condition": {
+          "type": "expression",
+          "expression": {
+            "type": "comparison",
+            "op": "==",
+            "left": {
+              "type": "variable",
+              "name": "account_locked"
+            },
+            "right": {
+              "type": "string_literal",
+              "value": "true"
+            }
+          }
+        }
+      },
+      {
+        "id": "e_triage_after_hours",
+        "start_node_id": "n_triage",
+        "target": {
+          "type": "node",
+          "node_id": "n_after_hours"
+        },
+        "condition": {
+          "type": "expression",
+          "expression": {
+            "type": "comparison",
+            "op": "==",
+            "left": {
+              "type": "variable",
+              "name": "after_hours_mode"
+            },
+            "right": {
+              "type": "string_literal",
+              "value": "true"
+            }
+          }
+        }
+      },
+      {
+        "id": "e_triage_refill",
+        "start_node_id": "n_triage",
+        "target": {
+          "type": "node",
+          "node_id": "n_verify"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller wants to refill a prescription"
+        }
+      },
+      {
+        "id": "e_triage_status",
+        "start_node_id": "n_triage",
+        "target": {
+          "type": "node",
+          "node_id": "n_verify"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller asks whether an order or refill is ready"
+        }
+      },
+      {
+        "id": "e_triage_faq",
+        "start_node_id": "n_triage",
+        "target": {
+          "type": "node",
+          "node_id": "n_faq"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller asks about hours, location, or what a medication is for"
+        }
+      },
+      {
+        "id": "e_verify_lockout",
+        "start_node_id": "n_verify",
+        "target": {
+          "type": "node",
+          "node_id": "n_locked"
+        },
+        "condition": {
+          "type": "expression",
+          "expression": {
+            "type": "comparison",
+            "op": "==",
+            "left": {
+              "type": "variable",
+              "name": "account_locked"
+            },
+            "right": {
+              "type": "string_literal",
+              "value": "true"
+            }
+          }
+        }
+      },
+      {
+        "id": "e_verify_timeout",
+        "start_node_id": "n_verify",
+        "target": {
+          "type": "node",
+          "node_id": "n_transfer"
+        },
+        "condition": {
+          "type": "expression",
+          "expression": {
+            "type": "comparison",
+            "op": ">=",
+            "left": {
+              "type": "variable",
+              "name": "telnyx_conversation_duration_secs"
+            },
+            "right": {
+              "type": "string_literal",
+              "value": "300"
+            }
+          }
+        }
+      },
+      {
+        "id": "e_verify_human",
+        "start_node_id": "n_verify",
+        "target": {
+          "type": "node",
+          "node_id": "n_transfer_prompt"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller asks for a human or pharmacist"
+        }
+      },
+      {
+        "id": "e_verify_refill",
+        "start_node_id": "n_verify",
+        "target": {
+          "type": "node",
+          "node_id": "n_refill"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller was verified and wants to refill a prescription"
+        }
+      },
+      {
+        "id": "e_verify_status",
+        "start_node_id": "n_verify",
+        "target": {
+          "type": "node",
+          "node_id": "n_status"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller was verified and wants to check refill status"
+        }
+      },
+      {
+        "id": "e_refill_confirm",
+        "start_node_id": "n_refill",
+        "target": {
+          "type": "node",
+          "node_id": "n_confirm"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller has chosen which prescription(s) to refill"
+        }
+      },
+      {
+        "id": "e_refill_triage",
+        "start_node_id": "n_refill",
+        "target": {
+          "type": "node",
+          "node_id": "n_triage"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "Nothing is eligible or the caller changes their mind"
+        }
+      },
+      {
+        "id": "e_refill_timeout",
+        "start_node_id": "n_refill",
+        "target": {
+          "type": "node",
+          "node_id": "n_transfer"
+        },
+        "condition": {
+          "type": "expression",
+          "expression": {
+            "type": "comparison",
+            "op": ">=",
+            "left": {
+              "type": "variable",
+              "name": "telnyx_conversation_duration_secs"
+            },
+            "right": {
+              "type": "string_literal",
+              "value": "300"
+            }
+          }
+        }
+      },
+      {
+        "id": "e_confirm_closing",
+        "start_node_id": "n_confirm",
+        "target": {
+          "type": "node",
+          "node_id": "n_closing"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller said they are done, said goodbye, thank you, or no and the call should end"
+        }
+      },
+      {
+        "id": "e_confirm_triage",
+        "start_node_id": "n_confirm",
+        "target": {
+          "type": "node",
+          "node_id": "n_triage"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller wants help with something else, says yes to 'anything else', or asks another question"
+        }
+      },
+      {
+        "id": "e_confirm_refill",
+        "start_node_id": "n_confirm",
+        "target": {
+          "type": "node",
+          "node_id": "n_refill"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller said no or wants to make changes"
+        }
+      },
+      {
+        "id": "e_confirm_timeout",
+        "start_node_id": "n_confirm",
+        "target": {
+          "type": "node",
+          "node_id": "n_transfer"
+        },
+        "condition": {
+          "type": "expression",
+          "expression": {
+            "type": "comparison",
+            "op": ">=",
+            "left": {
+              "type": "variable",
+              "name": "telnyx_conversation_duration_secs"
+            },
+            "right": {
+              "type": "string_literal",
+              "value": "300"
+            }
+          }
+        }
+      },
+      {
+        "id": "e_status_closing",
+        "start_node_id": "n_status",
+        "target": {
+          "type": "node",
+          "node_id": "n_closing"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller is done"
+        }
+      },
+      {
+        "id": "e_status_refill",
+        "start_node_id": "n_status",
+        "target": {
+          "type": "node",
+          "node_id": "n_refill"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller wants to request a refill"
+        }
+      },
+      {
+        "id": "e_faq_verify",
+        "start_node_id": "n_faq",
+        "target": {
+          "type": "node",
+          "node_id": "n_verify"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller wants a refill or status"
+        }
+      },
+      {
+        "id": "e_faq_closing",
+        "start_node_id": "n_faq",
+        "target": {
+          "type": "node",
+          "node_id": "n_closing"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller is done"
+        }
+      },
+      {
+        "id": "e_faq_transfer",
+        "start_node_id": "n_faq",
+        "target": {
+          "type": "node",
+          "node_id": "n_transfer_prompt"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller asks for a human or pharmacist"
+        }
+      },
+      {
+        "id": "e_transfer_prompt",
+        "start_node_id": "n_transfer_prompt",
+        "target": {
+          "type": "node",
+          "node_id": "n_transfer"
+        },
+        "condition": {
+          "type": "default"
+        }
+      },
+      {
+        "id": "e_locked_transfer",
+        "start_node_id": "n_locked",
+        "target": {
+          "type": "node",
+          "node_id": "n_transfer"
+        },
+        "condition": {
+          "type": "default"
+        }
+      },
+      {
+        "id": "e_after_hours_human",
+        "start_node_id": "n_after_hours",
+        "target": {
+          "type": "node",
+          "node_id": "n_transfer_prompt"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller asks for a human or pharmacist"
+        }
+      },
+      {
+        "id": "e_after_hours_closing",
+        "start_node_id": "n_after_hours",
+        "target": {
+          "type": "node",
+          "node_id": "n_closing"
+        },
+        "condition": {
+          "type": "llm",
+          "prompt": "The caller is done or says goodbye"
+        }
+      },
+      {
+        "id": "e_transfer_failed",
+        "start_node_id": "n_transfer",
+        "target": {
+          "type": "node",
+          "node_id": "n_transfer_failed"
+        },
+        "condition": {
+          "type": "default"
+        }
+      },
+      {
+        "id": "e_transfer_failed_hangup",
+        "start_node_id": "n_transfer_failed",
+        "target": {
+          "type": "node",
+          "node_id": "n_hangup"
+        },
+        "condition": {
+          "type": "default"
+        }
+      },
+      {
+        "id": "e_closing_hangup",
+        "start_node_id": "n_closing",
+        "target": {
+          "type": "node",
+          "node_id": "n_hangup"
+        },
+        "condition": {
+          "type": "default"
+        }
+      }
+    ]
+  },
+  "tags": []
+}

@@ -304,6 +304,7 @@ SAFE_DEFAULTS: dict[str, str] = {
     "refills_enabled": "true",
     "after_hours_mode": "false",
     "open_refill_count": "0",
+    "closing_message": "Thanks for calling Maple Pharmacy. We appreciate your call. Take care, and have a great day.",
     "pharmacy_hours": "8am to 8pm, Monday to Saturday",
     "transfer_fail_message": "I couldn't reach a pharmacist right now. Thanks for your call, goodbye.",
 }
@@ -442,8 +443,22 @@ class App:
             )
         else:
             vars_out["transfer_fail_message"] = (
-                "I couldn't reach a pharmacist right now. Please call back later. "
+                "I couldn't reach a pharmacist right now. "
+                "Please call back during business hours. "
                 "Thanks for your call, goodbye."
+            )
+
+        # Closing message contextual on after-hours
+        if vars_out.get("after_hours_mode") == "true":
+            vars_out["closing_message"] = (
+                f"Thanks for calling Maple Pharmacy. We're currently closed. "
+                f"Please call back during business hours: {_pharmacy_hours}. "
+                "Take care, and have a great day."
+            )
+        else:
+            vars_out["closing_message"] = (
+                "Thanks for calling Maple Pharmacy. We appreciate your call. "
+                "Take care, and have a great day."
             )
 
         # Determine degraded / over-budget
