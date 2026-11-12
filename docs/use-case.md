@@ -55,7 +55,7 @@ Independent and small-chain community pharmacies: one or two pharmacists, a coup
 | Global, read-mostly data | **KV** | Feature flags (toggle after-hours mode with no redeploy) and a TTL cache of openFDA results |
 | Knowing it works | **Structured logs, metrics and a trace ID** across webhook → gateway/actor → MCP | Any call can be reconstructed from one ID |
 
-**Security sits on the server.** The conversation flow guides the caller, but the MCP server is the enforcement point. Prescription and refill tools refuse to run unless the caller's actor records a successful verification in the last 30 minutes. The deliberate tradeoff: a caller who verified and calls back within that window isn't asked again. A mis-routed conversation can't leak data.
+**Security sits on the server.** The conversation flow guides the caller, but the MCP server is the enforcement point. Prescription and refill tools refuse to run unless the caller's actor records a successful verification on the current call (valid for up to 30 minutes). Verification is cleared at the start of every call, so each call verifies again, while failed attempts and the lockout carry over between calls to stop brute force. The deliberate tradeoff: repeat callers always answer the date-of-birth question. A mis-routed conversation can't leak data.
 
 ---
 

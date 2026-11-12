@@ -80,17 +80,18 @@ Write-Host "Flags reset: refills=true, after_hours=false"
 
 ---
 
-## Scenario 2: Maria Calls Back (Already Verified)
+## Scenario 2: Maria Calls Back (Must Re-verify)
 
 **Setup:** Run Scenario 1 first. Do NOT reset.
 
 | Step | You Say / Do | Expected Response | System Action |
 |---|---|---|---|
-| 1 | Dial again | Same greeting | `recordCall` increments to 2 |
-| 2 | "I want to refill" | "Welcome back Maria. You're already verified…" | `isVerified` → true; skips DOB step |
-| 3 | "Refill Metformin" | Confirms refill | `add_refill` for Metformin |
+| 1 | Dial again | Same greeting | `recordCall` increments to 2 and clears `verifiedUntil` |
+| 2 | "I want to refill" | "Please tell me your date of birth." | `isVerified` → false; DOB step is NOT skipped |
+| 3 | Give DOB, confirm | "Thank you, you're all set…" | `recordVerificationAttempt` success → `verifiedUntil` = now + 30 min |
+| 4 | "Refill Metformin" | Confirms refill | `addRefill` for Metformin |
 
-**Key insight:** Verification persists 30 minutes in the actor. You should NOT be asked for DOB again.
+**Key insight:** Verification is cleared at the start of every call (`recordCall` resets `verifiedUntil`), so a returning caller must verify again. A successful check lasts up to 30 minutes within that call. Failed attempts and the 15-minute lockout DO persist across calls (see Scenario 5).
 
 ---
 
