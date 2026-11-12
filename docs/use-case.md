@@ -38,7 +38,7 @@ Independent and small-chain community pharmacies: one or two pharmacists, a coup
 3. **Says what they need**, in their own words: a refill, an order status, hours or a general question, or a person.
 4. **Verifies identity** by date of birth before anything account-specific. After three wrong attempts, verification is locked for 15 minutes, **including on later calls**, and the caller is offered a pharmacist.
 5. **Refill:** hears which of their prescriptions can be refilled, picks one, hears it read back, confirms with an explicit "yes", and gets a pickup estimate.
-6. **Status:** hears whether open refills are "submitted" or "ready". A refill becomes "ready" on its own about two minutes after submission in the demo. That's done with a scheduled actor alarm.
+6. **Status:** hears whether open refills are "submitted" or "ready". The design marks a refill "ready" about two minutes after submission with a scheduled actor alarm. The alarm is set on every refill, but it isn't firing yet (see README "Known limitations"), so refills currently stay "submitted".
 7. **General questions:** opening hours, location, and a medication's label purpose ("what is this for?"). The purpose text comes from the public openFDA drug-label API. Anything clinical goes to a pharmacist.
 8. **Escalation, always available:** asking for a person, being locked out, or a call running past 5 minutes routes to a warm transfer. If nobody answers, the caller hears the opening hours and the call ends politely.
 
@@ -51,7 +51,7 @@ Independent and small-chain community pharmacies: one or two pharmacists, a coup
 | Routing on what the caller means | **LLM-condition edges** | Human intent is fuzzy; this is what the model is good at |
 | Personalisation at call start | **Dynamic webhook variables** served by an **Edge Function** (Python) | Name, call history, lockout and feature flags reach the conversation before the first word |
 | Account actions during the call | **Custom MCP server** on an Edge Function (Python), 6 tools | Verification, prescriptions, refills, status, medication info, pharmacy info |
-| Per-caller state that must be exactly right | **Stateful Actor** `CallerSession` (behind a small TypeScript gateway) | Attempt counter, lockout, refill list and the "ready" alarm. Everything is read-modify-write on one caller, safe without locks |
+| Per-caller state that must be exactly right | **Stateful Actor** `CallerSession` (behind a small TypeScript gateway) | Attempt counter, lockout and refill list (plus a "ready" alarm, not firing yet). Everything is read-modify-write on one caller, safe without locks |
 | Global, read-mostly data | **KV** | Feature flags (toggle after-hours mode with no redeploy) and a TTL cache of openFDA results |
 | Knowing it works | **Structured logs, metrics and a trace ID** across webhook → gateway/actor → MCP | Any call can be reconstructed from one ID |
 
@@ -64,7 +64,7 @@ Independent and small-chain community pharmacies: one or two pharmacists, a coup
 ### What the prototype must show (demo-day acceptance)
 | Scenario | Expected outcome |
 |---|---|
-| Known caller, refill | Greeted by name → verified → chooses → read-back → confirmed → refill recorded; second call shows "ready" |
+| Known caller, refill | Greeted by name → verified → chooses → read-back → confirmed → refill recorded; second call shows it as "submitted" ("ready" once the alarm fires) |
 | Status check | Verified → hears current status of open refills |
 | Wrong DOB ×3 | Locked out, offered a pharmacist; **a new call within 15 minutes is routed to a human before the assistant asks anything** |
 | Unknown number | Generic greeting; account actions refused politely; FAQ and human still available |
@@ -107,7 +107,7 @@ A real pilot would measure:
 | MCP with ≥ 3 tools | Six tools with clear, separate purposes, scoped per node |
 | Stateful Actor | The verification attempt counter is a textbook read-modify-write race. Two concurrent calls must not both see "attempt 2". This is exactly what actors exist for |
 | KV | Flags (global, rarely changed, slight staleness is fine) and a cache in front of a slow external API, both classic KV workloads |
-| Actor alarms (stretch) | "Your refill is ready" is genuinely future, scheduled work |
+| Actor alarms (stretch, not firing yet) | "Your refill is ready" is genuinely future, scheduled work |
 | Observability | Compliance-sensitive flows make "can you prove what happened on that call?" a real requirement, not a checkbox |
 
 **2. It shows judgement about which feature fits which job.** The interviewers explicitly score choosing actor vs KV vs plain function logic. Here the contrast is concrete and demonstrable:
@@ -121,7 +121,7 @@ A real pilot would measure:
 
 **5. It's realistic for Telnyx's customers.** Regulated, phone-heavy small businesses are a natural market for Voice AI on Telnyx. The same pattern (disclosure → verify → act → escalate) carries over to clinics, banks and utilities.
 
-**6. It's demonstrable live in 10 minutes.** A few phone calls show the workflow, the MCP tool calls, personalisation, actor state changing (lockout, the "ready" alarm), a KV flag flip and the logs, all observable while the demo runs.
+**6. It's demonstrable live in 10 minutes.** A few phone calls show the workflow, the MCP tool calls, personalisation, actor state changing (call count, attempts, lockout), a KV flag flip and the logs, all observable while the demo runs.
 
 ---
 

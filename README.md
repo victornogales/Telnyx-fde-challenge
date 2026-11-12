@@ -205,7 +205,7 @@ Every request logs exactly **one JSON line** with `trace_id`:
 | KV-based feature flags | `flag/after_hours_mode`, `flag/refills_enabled` |
 | Custom dynamic variables webhook | `refill-webhook` returns `closing_message`, `attempts_left`, `open_refill_count` |
 | Distributed tracing | `trace_id` shared across Assistant → Webhook → Actor → MCP |
-| Alarms in Stateful Actors | `CallerSession` calls `setAlarm()` on `request_refill`; ~2 minutes later `alarm()` marks the refill "ready" (retries with backoff on failure) |
+| Shared actors | `refill-webhook` and `refill-mcp` both use the same per-caller `CallerSession`, through the `caller-session` gateway |
 
 ---
 
@@ -218,6 +218,7 @@ Deliberate scope choices and known gaps, with what production would do instead:
 | **Patient data is a synthetic stub** hard-coded in the functions (number → name, date of birth, prescriptions). New patients need a code change and redeploy. | Integrating a real pharmacy management system was out of scope for a one-week build; the time went to the Telnyx platform pieces. Both functions look patients up through one function, so the swap is contained. | One patient-directory interface over the pharmacy's system of record. The webhook gets only a first name (short KV cache); verification and prescriptions are read live; no patient data in code. |
 | **The patient table is copied into each function by hand** (`_shared/patients.py`, `refill-mcp`, `refill-webhook`), and the copies already differ in shape. | Python Edge Functions ship as a single flat module, so they can't import shared code. `scripts/sync-shared.sh` predates that discovery and is not usable as-is. | A shared patient-directory service, or TypeScript functions with a bundler. |
 | **The caller's number reaches MCP tools as a model argument** (`caller = {{telnyx_end_user_target}}`). A manipulated model could pass another number; that person's date of birth would still be required, but their attempts could be used up. | On day 1 no trusted call identifier was available to the MCP server, so the number is passed explicitly. | Derive the caller from trusted call metadata on the server (e.g. map `_meta.telnyx_conversation_id` to the real caller ID). |
+| **The refill "ready" alarm doesn't fire.** `addRefill` calls `setAlarm(now + 2 min)` and `alarm()` is written to flip refills to "ready", but in testing the platform never invoked it, so refills stay "submitted". | Found late; not yet diagnosed. | Check the actor logs for an `alarm` event after `alarmAt`, confirm the actor binding, and test with a minimal actor; once it fires, the same handler can send a "ready" SMS (after 10DLC registration). |
 | **A lockout during the current call has no transfer edge.** `account_locked` is a dynamic variable set at call start, so it only routes callers who were already locked. A third wrong date of birth mid-call relies on the model to hand off. | Dynamic variables don't change mid-call. Security holds: MCP refuses every account tool while the caller is locked. | Add an edge on the verify tool's "locked" result (or an LLM edge "verification is locked") to `n_locked`. |
 
 ---
