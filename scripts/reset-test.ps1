@@ -1,10 +1,21 @@
 # Pre-Test Reset Script for RefillLine Voice Tests
 # Run this before each independent test scenario to reset actor state and flags
 #
-# Usage: .\scripts\reset-test.ps1
+# Usage: .\scripts\reset-test.ps1                      # synthetic demo caller (+15550000001)
+#        .\scripts\reset-test.ps1 -Number +44XXXXXXXXXX # the phone you will actually call from
 # Requires: $env:TELNYX_API_KEY, $env:INTERNAL_TOKEN, $env:KV_NAMESPACE_ID
+# The actor is keyed by the caller's number, so reset the number you dial from.
+
+param(
+    [string]$Number = "+15550000001"
+)
 
 $ErrorActionPreference = "Stop"
+
+if ($Number -notmatch '^\+[1-9]\d{6,14}$') {
+    Write-Host "ERROR: -Number must be in E.164 format, e.g. +15550000001" -ForegroundColor Red
+    exit 1
+}
 
 # -------------------------------------------------------------
 # 0. Validate required environment variables
@@ -37,9 +48,9 @@ if ($missing.Count -gt 0) {
 }
 
 # -------------------------------------------------------------
-# 1. Compute caller key for Maria (+15550000001)
+# 1. Compute caller key for the given number (sha256 prefix, same as the functions)
 # -------------------------------------------------------------
-$e164 = "+15550000001"
+$e164 = $Number
 $bytes = [System.Text.Encoding]::UTF8.GetBytes($e164)
 $hash = [System.Security.Cryptography.SHA256]::Create().ComputeHash($bytes)
 $hex = ($hash | ForEach-Object { $_.ToString("x2") }) -join ""
