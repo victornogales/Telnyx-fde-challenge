@@ -1,8 +1,30 @@
 # RefillLine Smoke Test (PowerShell)
 # Tests: refill-mcp, refill-webhook, caller-session
 # Run from repo root: .\scripts\smoke.ps1
+#        .\scripts\smoke.ps1 -Caller +44XXXXXXXXXX
+#        .\scripts\smoke.ps1 -Caller +15550000001 -Dob 1962-03-15
+# Defaults: -Caller +15550000001, -Dob 1962-03-15
+# -Number is an alias for -Caller (matches reset-test.ps1).
+# The webhook check always uses the synthetic +15550000001 caller.
+
+[CmdletBinding()]
+param(
+    [Alias("Number")]
+    [string]$Caller = "+15550000001",
+    [string]$Dob = "1962-03-15"
+)
 
 $ErrorActionPreference = "Stop"
+
+if ($Caller -notmatch '^\+[1-9]\d{6,14}$') {
+    Write-Host "ERROR: -Caller must be in E.164 format, e.g. +15550000001" -ForegroundColor Red
+    exit 1
+}
+
+if ($Dob -notmatch '^\d{4}-\d{2}-\d{2}$') {
+    Write-Host "ERROR: -Dob must be YYYY-MM-DD, e.g. 1962-03-15" -ForegroundColor Red
+    exit 1
+}
 
 $MCP_URL = "https://refill-mcp-6a4810fb-9.telnyxcompute.com"
 $WEBHOOK_URL = "https://refill-webhook-8d5c4fc7-b.telnyxcompute.com"
@@ -119,8 +141,8 @@ function Test-McpVerifyAndRefill() {
         params = @{
             name = "verify_identity"
             arguments = @{
-                caller = "+15550000001"
-                dob = "1962-03-15"
+                caller = $Caller
+                dob = $Dob
                 trace_id = "tr_smoke"
             }
         }
@@ -146,7 +168,7 @@ function Test-McpVerifyAndRefill() {
         params = @{
             name = "list_prescriptions"
             arguments = @{
-                caller = "+15550000001"
+                caller = $Caller
                 trace_id = "tr_smoke"
             }
         }
@@ -172,7 +194,7 @@ function Test-McpVerifyAndRefill() {
         params = @{
             name = "request_refill"
             arguments = @{
-                caller = "+15550000001"
+                caller = $Caller
                 rx_id = "rx-mar-001"
                 trace_id = "tr_smoke"
             }
@@ -199,7 +221,7 @@ function Test-McpVerifyAndRefill() {
         params = @{
             name = "get_refill_status"
             arguments = @{
-                caller = "+15550000001"
+                caller = $Caller
                 trace_id = "tr_smoke"
             }
         }
