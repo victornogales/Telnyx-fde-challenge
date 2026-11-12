@@ -25,7 +25,8 @@ Design: PLAN.md (local working plan, not committed), docs/architecture.md and th
   **inlined** into `function.py` before `telnyx-edge ship`. Do not create `function/shared/` or
   any sub-package directories in a Python function.
 - Dynamic variables webhook response MUST be `{"dynamic_variables": {...}}` and every value a STRING.
-- Webhook must answer < 1000 ms: per-dependency timeouts + asyncio.wait_for; on any error return
+- Webhook target: < 1000 ms warm; worst case ≈ 1.5 s (KV read cap 1.5 s, gateway cap 0.5 s, run in parallel;
+  assistant webhook timeout is 5 s). Per-dependency timeouts + asyncio.wait_for; on any error return
   SAFE_DEFAULTS with HTTP 200. Never a bare 500 anywhere.
 - Every request / actor method / tool call logs exactly one JSON line via `log()` with trace_id.
   Never log DOB, names or raw phone numbers — use caller_key (sha256 prefix).

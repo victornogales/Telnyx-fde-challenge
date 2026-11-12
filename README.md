@@ -205,6 +205,7 @@ Every request logs exactly **one JSON line** with `trace_id`:
 | KV-based feature flags | `flag/after_hours_mode`, `flag/refills_enabled` |
 | Custom dynamic variables webhook | `refill-webhook` returns `closing_message`, `attempts_left`, `open_refill_count` |
 | Distributed tracing | `trace_id` shared across Assistant → Webhook → Actor → MCP |
+| Alarms in Stateful Actors | `CallerSession` calls `setAlarm()` on `request_refill`; ~2 minutes later `alarm()` marks the refill "ready" (retries with backoff on failure) |
 
 ---
 
@@ -212,7 +213,7 @@ Every request logs exactly **one JSON line** with `trace_id`:
 
 See `opencode.json` for the active Telnyx plugin configuration.
 
-Model used: `telnyx/moonshotai/Kimi-K3` via the OpenCode plugin.
+Model used: `telnyx/moonshotai/Kimi-K2.6` via the OpenCode plugin. (`Kimi-K3`, the example in the brief, wasn't available on this account and returned a generic `UnknownError`. `opencode models telnyx` lists what is actually available. See `DOGFOOD.md`.)
 
 ---
 

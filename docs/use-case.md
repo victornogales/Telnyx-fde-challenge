@@ -75,7 +75,7 @@ Independent and small-chain community pharmacies: one or two pharmacists, a coup
 | 20 simultaneous updates for one caller | Counter increases by exactly 20 (actor); the same test against plain KV loses updates |
 
 ### Engineering targets
-- Webhook answers well under its 1.5 s budget: aim for **< 1 s p95**, measured with `telnyx-edge metrics`.
+- Webhook latency: **< 1 s when warm** (flags come from a 3 s per-container cache, and the actor call is capped at 0.5 s). A cold KV read over REST takes ~0.9–1.1 s, so each KV read is capped at **1.5 s**, worst case ≈ 1.5 s plus platform overhead. The assistant's webhook timeout is set to **5 s** so a cold call never silently falls back to defaults. Measured with `total_ms` / `kv_ms` / `gateway_ms` in the logs and `telnyx-edge metrics`. (Why: the 50% after-hours bug in the README.)
 - **Every** request and tool call produces one structured log line carrying the call's `trace_id`.
 - **No bare 500s.** Every failure degrades gracefully and is logged.
 
